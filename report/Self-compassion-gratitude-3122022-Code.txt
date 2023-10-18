@@ -1,0 +1,1075 @@
+---
+title: "Self-compassion and Gratitude Scales and Their Association with Demographics "
+author: "Cheng Peng"
+date: " 03/12/2022"
+output:
+  pdf_document: 
+    toc: yes
+    fig_height: 3
+    fig_caption: yes
+    number_sections: yes
+    keep_tex: yes
+    toc_depth: 4
+    fig_width: 4
+  html_document: 
+    toc: yes
+    fig_width: 8
+    fig_height: 6
+    fig_caption: yes
+    keep_md: yes
+  word_document: 
+    keep_md: yes
+    toc: yes
+    fig_height: 4
+    fig_caption: yes
+    fig_width: 5
+---
+
+
+# Introduction
+
+The goal of this research project is to measure the level of self-compassion as well as the self-care of BSW and MSW students in a Social Work Program at a
+regional University. We will be using the following two reliable and validated
+instruments to measure their level of self-compassion and self-care as they
+immerse themselves in the helping profession. We hope to see how the SC of
+the students correlates to other independent variables i.e. undergrad/grad
+program social work, age, education level, religiosity, spirituality, gender, etc.
+
+1. The Self-Compassion Scale
+2. The Gratitude Questionnaire
+
+The purpose of our research is to study the perception of self-compassion in
+social work students and how it can link to self-care as well as success in the social work program and field. This will help provide students with self-care practices during their training to thrive in the profession in the future.
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(GPArotation)
+library(psych)
+library(nFactors)
+library(rmarkdown)
+library(knitr)
+library(parameters)
+library(corrplot)
+library(ggcorrplot)
+library(ggfortify)
+require(ggplot2)
+require(GGally) 
+require(CCA)
+require(olsrr)
+require(cocron)
+opts_chunk$set(echo = FALSE, warning=FALSE, results =TRUE)
+```
+
+# Data Management and Analyzing Survey Instruments
+
+```{r}
+survey = read.csv("/Users/chengpeng/OneDrive - West Chester University of PA/Desktop/cpeng/WCU-Teaching/2022Fall/SurveyData/BUS_SW_Quant Data_final_Nov_noMissing.csv", head = TRUE)
+# names(survey)
+```
+
+The original survey data have three components, self-compassion scale and gratitude questionnaire instruments, and some demographic questions. 
+
+The three components have different portions of missing values. We split the original data set into three subsets of data and impute the missing values related to the self-compassion and gratitude data based on the survey instruments. Since there are only a few missing values, we replace the missing values in each survey question with the mode of the associated survey item. We create indexes of the two instruments separately to aggregate the information in the two survey data sets. 
+
+Since R does not have a function to find the model of a given data set, I write the following function to find the model of a data set.
+
+We will perform both principal component analysis (PCA) and exploratory factor analysis (EFA).
+
+
+
+```{r}
+my.mode = function(dataset){
+  freq.tbl = table(dataset)
+  max.freq.id=which(freq.tbl==max(freq.tbl))
+  mode=names(freq.tbl[max.freq.id])
+  as.numeric(mode)
+}
+```
+
+## Handling Missing Values Self-Compassion Instrument
+
+This instrument contains only the data associated with the 12 items in the survey instrument. In the original data file, the 12 variables are named as Q2_1, Q2_2, ..., Q2_12. We impute the missing value by replacing the missing value in each of the 12 items with the mode of the corresponding survey items. Since there are only a few missing values in this instrument, this imputation will not impact the subsequent PCA and EFA.  
+
+```{r}
+compassion = survey[, 1:12]
+# imputing with mode in each survey item
+for (i in 1:12) {
+  compassion[,i][is.na(compassion[,i])]=my.mode(compassion[,i])
+}
+```
+
+## Handling Missing Values in Gratitude Scale
+
+The gratitude questionnaire contains only the variables associated with gratitude questions. The variables used in the original data file are Q3_1, Q3_2, ..., Q3_6. We use the same mode imputation method to fill in the missing values as used in the above self-compassion survey data. The gratitude questionnaire has even fewer missing values. Any imputation will not impact any subsequent analysis.
+
+```{r}
+gratitude = survey[, 13:18]
+# imputing with mode in each survey item
+for (i in 1:6) {
+  gratitude[,i][is.na(gratitude[,i])]=my.mode(gratitude[,i])
+}
+```
+
+Since Likert scales of the Q3_3 and Q3_6 were in reverse order in the design. We transform back the usual order and create a new dataset using the same variable names.
+
+```{r}
+gratitude.new = gratitude
+gratitude.new$Q3_3 = 8-gratitude$Q3_3
+gratitude.new$Q3_6 = 8-gratitude$Q3_6
+```
+
+## Handling Demographic Variables
+
+
+The demographic variables have two issues: missing values and imbalance categories. Since the size of the data set is slightly close to 120, imputing missing values in a meaningful way is crucial to maintain the sample size and the statistical power of all subsequent association analysis. About 15 records in the data sets do not have demographic information. Therefore these records were deleted in the final data. 
+
+A few missing values occurred in the years of education and employment that are imputed using the auxiliary information in the variables of age, the years of education, and the length of employment. 
+
+The major issue of these categorical variables is the imbalance category. The following modifications to the original demographic variables are utilized.
+
+
+```{r}
+demographic = survey[, -(1:18)]
+demographic00=demographic
+```
+
+```{}
+# replace missing values with 99.
+demographic00[is.na(demographic00)] <- 99  
+# Create a frequency table for collapsing categories
+list(Q8.1=table(demographic00$Q8_1),
+     Q8.2=table(demographic00$Q8_2),
+     Q8.3=table(demographic00$Q8_3),
+     Q8.5=table(demographic00$Q8_5),
+     Q8.6=table(demographic00$Q8_6),
+     Q.9=table(demographic00$Q9),
+     Q.11=table(demographic00$Q11),
+     Q.13=table(demographic00$Q13),
+     Q.14=table(demographic00$Q14),
+     Q.15=table(demographic00$Q15),
+     Q.16=table(demographic00$Q16),
+     Q.17=table(demographic00$Q17),
+     Q.18=table(demographic00$Q18),
+     Q.19=table(demographic00$Q19),
+     Q.20=table(demographic00$Q20)
+     )
+```
+
+
+```{ }
+grp.age = Q8_1:  1 = (3,23], 2 = [24, 30],  3 = [31, 59]
+grp.edu = Q8_2:    1 = [0,15] associate, 2 = [15.5,18.5] bachelor, 3 = [19, 25]  advdegree
+grp.empl = Q8_3:   1 = [0,5]  entry, 2 = [5.5,10] junior, 3 = [10.5, 35]   senior
+kid.num = Q8_5: 1 = (0) No child, 2 = at least one child
+home.size = Q8_6:  1 = (1), 2 = (2), 3 = 3 or more
+
+gender = Q9:  1 = (2) female, 2 = (1,3,5,7) male 
+race = Q11:   1 = (1)   white,   2 = (2,3) other
+marital.st = Q13: 1 = (1) single, 2 = (2) married/civil Partner, 3 = other
+disability = Q14:  1 = yes,  2 = No
+religion = Q15:  1 = 9 (no religion), 2 = (1,2,3,6,7,8,10,11,99) (religion)
+Sexual.orient = Q16:  1 = (4)  heterosexual,  2 = (1,2,3,5,6,7,10) other
+poli.affil = Q17: 1 = (4)ind, 2 = (5,6,7)  democrats, 3 = (1,2,3, 99) other
+SW.Program = Q18: 1 = (1) Business Student, 2 = (2,99) SWK Students
+Urbanity = Q19:  1 = (1) urban, 2 = (2) rural, 3 = (3) suburban
+Spirituality = Q20: 1 = (1,2,3) low, 2 = (4)   moderate,  3 = (5,6,7) high
+```
+
+We re-code the demographic variables based on the above modification. The modified demographic variables will be used in subsequent modeling.
+
+```{r}
+Q8.1=demographic00$Q8_1
+grp.age=cut(Q8.1, breaks=c(1, 23, 30, 100), labels=c("[1,23]", "[24,30]", "[30,99]"))
+#
+Q8.2=demographic00$Q8_2
+grp.edu=cut(Q8.2, breaks=c(0, 15.5, 19, 100), labels=c("Assoc", "Bachelor", "Adv.deg"))
+#
+Q8.3=demographic00$Q8_3
+grp.empl=cut(Q8.3, breaks=c(-1,5, 9, 100), labels=c("entry", "junior", "senior"))
+#
+Q8.5=demographic00$Q8_5
+kid.num=cut(Q8.5, breaks=c(-1,1,100), labels=c("No-kid", "With-kid"))
+#
+Q8.6=demographic00$Q8_6
+home.size=cut(Q8.6, breaks=c(-1,2,100), labels=c("1-2", "3+"))
+#
+Q.9=demographic00$Q9
+gender=rep("male", length(Q.9))
+gender[which(Q.9==2)]="female"
+gender[which(Q.9 %in% c(3,4,5,6,7))]="NA"
+
+#
+Q.11=demographic00$Q11
+race=rep("other", length(Q.11))
+race[which(Q.11==1)]="white"
+#
+Q.13=demographic00$Q13
+marital.st = rep("other", length(Q.13))
+marital.st[which(Q.13==1)]="single"
+marital.st[which(Q.13==2)]="married"
+#
+Q.14=demographic00$Q14
+disability=rep("yes", length(Q.14))
+disability[which(Q.14==2)]="no"
+#
+Q.15=demographic00$Q15
+religion=rep("religion", length(Q.15))
+religion[which(Q.15==1)]="no-religion"
+#
+Q.16=demographic00$Q16
+sexual.orient=rep("other", length(Q.16))
+sexual.orient[which(Q.16==4)]="heterosexual"
+#
+Q.17=demographic00$Q17
+poli.affil = rep("Republican", length(Q.17))
+poli.affil[Q.17 %in% c(5,6)]="ModDemocrats"
+poli.affil[Q.17 %in% c(7)]="StrongDemocrats"
+poli.affil[which(Q.17 ==4)]="independent"
+#
+Q.18=demographic00$Q18
+program=rep("BUS", length(Q.18))
+program[which(Q.18 %in% c(2,3))]="SW"
+
+#
+Q.19=demographic00$Q19
+urbanity=rep("urban", length(Q.19))
+urbanity[which(Q.19==2)]="rural"
+urbanity[which(Q.19==3)]="suburban"
+#
+Q.20=demographic00$Q20
+spirituality=rep("high", length(Q.20))
+spirituality[which(Q.20==2)]="moderate"
+spirituality[Q.20 %in% c(1,2,3)]="low"
+#
+new.demographics=data.frame(grp.age, grp.edu, grp.empl, kid.num, home.size, gender, race,
+           marital.st, disability, religion, sexual.orient, poli.affil,
+           program, urbanity, spirituality)
+#new.demographics
+
+```
+
+
+
+# PCA and EFA for Survey Instruments
+
+
+We perform both principal component analysis (PCA) and the exploratory factor analysis (EFA). The number  We next try several exploratory factor analysis models to find the best model that explains the most variation of the data.
+
+Different methods for finding the number of components/factors to retain in an exploratory principal component or factor analysis are used in this analysis. The classical ones are the Kaiser rule, the parallel analysis, and the usual scree test. Non-graphical solutions by Raiche et al. (2013) to the Cattell subjective scree test are also proposed: an acceleration factor (AF) and the index of the optimal coordinate OC. The acceleration factor indicates the turning point of the scree plot. It corresponds to the acceleration of the curve, i.e. the second derivative. The optimal coordinates are the extrapolated coordinates of the previous eigenvalue that allow the observed eigenvalue to go beyond this extrapolation. 
+
+Our objective is to aggregate the information to a few principle components that carry as much information as possible, then use simple statistical analysis to characterize the behavior of the resulting PCA or EFA scores and relevant association analyses. Therefore, the standard orthogonal rotation is used to avoid the potential correlation between the resulting PCA or EFA scores. 
+
+Whether PCA or EFA will be used and how many of the PCAs or EFAs will be selected will be based on the well-received analytical methods and subjective judgment on the proportion of variables explained by the selected PCAs or EFAs. In case, both PCA and EFA give similar results in terms of the proportion of the total variation, we will go with PCA since PCA's estimation of loading does not assume distribution of normality to define the maximum likelihood objection. This will reduce the risk of model misspecification.
+
+
+## Some R Functions For Extracting Information from PCA and EFA
+
+We defined and modified some R functions to extract specific information from the PCA or EFA analyses to address the analytic questions outlined in the previous section.
+
+**My.plotnScree** produce a plot that summarized the results of four commonly used methods used for identifying the number of components or factors to be retained for exploratory analyses. This graphics function was modified from the *plotnScree()* from library **nFactors**.
+
+```{r}
+My.plotnScree = function(mat, legend = TRUE, method ="factors", main){
+    # mat = data matrix
+    # method = c("factors", "components"), default is "factors".
+    # main = title of the plot
+    ev <- eigen(cor(mat))    # get eigenvalues
+    ap <- parallel(subject=nrow(mat),var=ncol(mat), rep=5000,cent=.05)
+    nScree = nScree(x=ev$values, aparallel=ap$eigen$qevpea, model=method)  
+    ##
+    if (!inherits(nScree, "nScree")) 
+        stop("Method is only for nScree objects")
+    if (nScree$Model == "components") 
+        nkaiser = "Eigenvalues > mean: n = "
+    if (nScree$Model == "factors") 
+      nkaiser = "Eigenvalues > zero: n = "
+    # axis labels
+    xlab = nScree$Model
+    ylab = "Eigenvalues"
+    ##
+    par(col = 1, pch = 18)
+    par(mfrow = c(1, 1))
+    eig <- nScree$Analysis$Eigenvalues
+    k <- 1:length(eig)
+    plot(1:length(eig), eig, type="b", main = main, 
+        xlab = xlab, ylab = ylab, ylim=c(0, 1.2*max(eig)))
+    #
+    nk <- length(eig)
+    noc <- nScree$Components$noc
+    vp.p <- lm(eig[c(noc + 1, nk)] ~ k[c(noc + 1, nk)])
+    x <- sum(c(1, 1) * coef(vp.p))
+    y <- sum(c(1, nk) * coef(vp.p))
+    par(col = 10)
+    lines(k[c(1, nk)], c(x, y))
+    par(col = 11, pch = 20)
+    lines(1:nk, nScree$Analysis$Par.Analysis, type = "b")
+    if (legend == TRUE) {
+        leg.txt <- c(paste(nkaiser, nScree$Components$nkaiser), 
+                   c(paste("Parallel Analysis: n = ", nScree$Components$nparallel)), 
+                   c(paste("Optimal Coordinates: n = ", nScree$Components$noc)), 
+                   c(paste("Acceleration Factor: n = ", nScree$Components$naf))
+                   )
+        legend("topright", legend = leg.txt, pch = c(18, 20, NA, NA), 
+                           text.col = c(1, 3, 2, 4), 
+                           col = c(1, 3, 2, 4), bty="n", cex=0.7)
+    }
+    naf <- nScree$Components$naf
+    text(x = noc, y = eig[noc], label = " (OC)", cex = 0.7, 
+        adj = c(0, 0), col = 2)
+    text(x = naf + 1, y = eig[naf + 1], label = " (AF)", 
+        cex = 0.7, adj = c(0, 0), col = 4)
+}
+# example
+# My.plotnScree(mat=compassion, legend = TRUE, method ="factors", 
+#              main = "Number of Factors to Retain")
+```
+
+
+**My.loadings.var** produce a list of two objects: factor loadings and proportion variance explained by each factor. There are no existing R functions that can be used to extract the proportion of variance from the output of *factanal()*. The function can also extract similar information from the output of a PCA but we need to specify the method in the argument.
+
+
+```{r}
+My.loadings.var <- function(mat, nfct, method="fa"){
+   # mat =  data matrix
+   # nfct = number of factors or components
+   # method = c("fa", "pca"), default = is "fa".
+    if(method == "fa"){ 
+     f1 <- factanal(mat, factors = nfct,  rotation = "varimax")
+     x <- loadings(f1)
+     vx <- colSums(x^2)
+     varSS = rbind('SS loadings' = vx,
+            'Proportion Var' = vx/nrow(x),
+           'Cumulative Var' = cumsum(vx/nrow(x)))
+     weight = f1$loadings[] 
+   } else if (method == "pca"){
+     pca <- prcomp(mat, center = TRUE, scale = TRUE)
+     varSS = summary(pca)$importance[,1:nfct]
+     weight = pca$rotation[,1:nfct]
+  }
+    list(Loadings = weight, Prop.Var = varSS)
+}
+# example
+# My.loadings.var(mat, nfct=3, method="pca")
+```
+
+
+## Self-compassion Index
+
+We start with some correlation plot to see the relevance of the PCA procedure on the self-compassion data. 
+
+
+```{r fig.width = 6, fig.height = 6, fig.cap="The pairwise correlation plot reveals the potential relevance of PCA. The shape of an ellipse represents the correlation. The skinnier the ellipse, the higher the correlation. The direction reflects whether a correlation is positive or negative. The off-diagonal direction implies s positive correlation while the main diagonal direction implies a negative association."}
+##
+M=cor(compassion)
+corrplot.mixed(M, lower.col = "purple", upper = "ellipse", number.cex = .7, tl.cex = 0.7)
+```
+
+Figure 1 shows the moderate association between individual survey items. This implies that the PCA is relevant in aggregating the information in the survey items. 
+
+
+Similar to López et. al. (2018), we use the six positive items associated with mindfulness, self-kindness and the sense of common humanity to define the self-compassion index. 
+
+
+From the pair-wise correlation plot we can see that some of the items are reversely scored. We next change back the scale so that all items are positively correlated.
+
+```{r}
+###
+selfcomp = cbind(compassion$Q2_3, compassion$Q2_7, compassion$Q2_10,
+                 compassion$Q2_5,compassion$Q2_2,compassion$Q2_6)
+###
+selcold =  cbind(compassion$Q2_1, compassion$Q2_9, compassion$Q2_4,
+                 compassion$Q2_8,compassion$Q2_11,compassion$Q2_12)
+
+###  MD = Mindfulness, SK = Self-kindness, CH = sense of common humanity
+selfcomp.sub = cbind(MD1=compassion$Q2_3, MD2=compassion$Q2_7, 
+                     CH1=compassion$Q2_10,CH2=compassion$Q2_5,
+                     SK1=compassion$Q2_2,SK2=compassion$Q2_6)
+
+### SJ = self-judement OI = Over-identification, IS = Isolation
+selfcold.sub =  cbind(OI1=compassion$Q2_1, OI2=compassion$Q2_9, 
+                     IS1=compassion$Q2_4, IS2=compassion$Q2_8,
+                     SJ1=compassion$Q2_11,SJ2=compassion$Q2_12)
+### simple sum and average
+selfcomp.sum = compassion$Q2_3 + compassion$Q2_7 + compassion$Q2_10 +
+                 compassion$Q2_5 + compassion$Q2_2 + compassion$Q2_6
+selfcomp.avg = selfcomp.sum/6
+```
+
+
+```{r fig.width = 6, fig.height = 6, fig.cap="The pairwise correlation plot reveals the potential relevance of PCA. Group items based on self-compassion and self-coldness"}
+##
+M=cor(cbind(selfcomp.sub, selfcold.sub))
+corrplot.mixed(M, lower.col = "purple", upper = "ellipse", number.cex = .7, tl.cex = 0.7)
+```
+
+Next, we make the following heatmap to illustrate the pairwise correlation between the items in the survey instrument based on the positive adjustment of the scale. 
+
+
+```{r fig.cap="Pairwise correlation based on negatively adjusted subscales. The shape of an ellipse represents the correlation. The skinnier the ellipse, the higher the correlation. The direction reflects whether a correlation is positive or negative. The off-diagonal direction implies s positive correlation while the main diagonal direction implies a negative association."}
+##
+M=cor(selfcomp.sub)
+corrplot.mixed(M, lower.col = "purple", upper = "ellipse", number.cex = .7, tl.cex = 0.7)
+```
+
+
+### Intern Consistency
+
+With the adjusted the scores in the self-compassion instrument, we calculate the one of the commonly used internal consistency reliability Cronbach alpha as follows.
+
+Next we find the Cronbach alpha and it 95% confidence interval.
+
+```{r}
+library(psych)
+cronbach.sc = as.numeric(psych::alpha(selfcomp.sub)$total[1])
+CI.sc = cronbach.alpha.CI(alpha=cronbach.sc, n=dim(selfcomp.sub)[1], items=6, conf.level = 0.95)
+CI.comp = cbind(LCI = CI.sc[1], alpha = cronbach.sc, UCI =CI.sc[2])
+row.names(CI.comp) = ""
+kable(CI.comp, caption="Confodence Interval of Cranbach Alpha")
+```
+
+
+
+We can see that the Cronbach's alpha is 0.77 with 95% confidence interval (0.70, 0.84) suggesting that the items in the self-compassion instrument have relatively high internal consistency. 
+
+
+### PCA Extraction and Number of PCA Determination
+
+
+The number of PCAs selected for the future exploratory analyses is the key issue and is also the first question we need to address before we move to any further analysis with the PCA scores. Raiche et al (2013) simulation-based test and Scree plot indicate that it is sufficient to choose the first principle component for future analysis. For exploratory purposes, we will choose the first two principal components for both PCA and EFA procedures and use them for association analysis.
+
+\newpage
+
+```{r fig.cap = "Different methods of identification of the number of principal components to be retained in exploratory analysis: Kaiser's eigenvalue rule, Raiche et al Monte Carlo simulation method (parallel analysis),  optimal coordinate (OC) index, and accelerate factor (AF) method.", fig.height = 4, fig.width=5}
+My.plotnScree(mat=selfcomp.sub, legend = TRUE, method ="components", 
+              main="Determination of Number of Components\n Self-compassion (Positive)")
+
+```
+
+
+Figure 2 indicates that it is sufficient to retain the first principle component for the subsequent analysis. In the following, we will extract the first two PCAs. The PCA factor loadings and the proportion of variance explained by the retained PCAs are summarized in the following tables.  
+
+
+```{r}
+#
+Loadings = My.loadings.var(mat=selfcomp.sub, nfct=2, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the self-compassion survey.")
+```
+
+
+
+```{r}
+VarProp = My.loadings.var(mat=selfcomp.sub, nfct=2, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    principal component in the self-compassion survey.")
+```
+
+
+We also conduct the same analysis using EFA. The Scree type of test also suggests retaining a single factor. The proportion of total variation is lower than that of PCA. we decide using PCA method and extract the first two principle components for the future analysis. Table 1 shows the factor loadings of the first two principle components. We can see that each of the original items contribute to the two PCAs evenly in terms of the magnitude. The first PCA counts about 41.3% of the total variation and the second PCA counts 10.9% of total variation. We can simply call the first PCA as *self-compassion index*, denoted by sc.idx. 
+
+Next we extract the self-compassion index in the following code
+
+
+```{r fig.cap = "Histogram of the first principle component extract from the self-compassion survey. "}
+pca <- prcomp(selfcomp, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+# hist(sc.idx, breaks=10, main="Distribution of Self-compassion Index")
+##
+hist(sc.idx,
+main="Distribution of Self-compassion Index",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Self-compassion Index",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+
+
+## Gratitude Questionaire
+
+In this section, we perform the same analysis on the gratitude survey instrument. First of all, we present a pairwise correlation plot to display the correlation between individual survey items in the gratitude survey instrument.
+
+```{r fig.cap="The pairwise correlation plot reveals the potential relevance of PCA for the gratitude instrument. The shape of an ellipse represents the correlation. The skinnier the ellipse, the higher the correlation. The direction reflects whether a correlation is positive or negative. The off-diagonal direction implies s positive correlation while the main diagonal direction implies a negative association."}
+##
+M1=cor(gratitude.new)
+#corrplot(M, type = "upper", method = "ellipse", main="Pairwise Correlation Plot: Self-Compassion Scale")
+corrplot.mixed(M1, lower.col = "purple", upper = "ellipse", number.cex = .7, tl.cex = 0.7)
+```
+
+
+Figure 3 shows that a moderate correlation exists between individual variables. This implies the PCA and EFA can be used to aggregate the information in the set original survey items. Next, we estimate the number of PCAs or EFAs to be retained for the subsequent analysis using the commonly used procedures and summarize the results in the following figure 4.
+
+
+### Cronbach's Alpha
+
+The internal consistency measure, Cronbach's alpha, of the gratitude instruments calculated below
+
+```{r}
+cronbach.gr = as.numeric(psych::alpha(gratitude.new)$total[1])
+CI.gr = cronbach.alpha.CI(alpha=cronbach.gr, n=212, items=6, conf.level = 0.95)
+CI.gratitude = cbind(LCI = CI.gr[1], alpha = cronbach.gr, UCI =CI.gr[2])
+row.names(CI.gratitude) = ""
+kable(CI.gratitude, caption="Confodence Interval of Cranbach Alpha")
+```
+
+
+We can see that the Cronbach's alpha  is 0.8 with a 95% confidence interval (0.74, 0.86) also suggesting that the items in the Gratitude rating instrument have relatively high internal consistency. 
+
+
+
+### PCA Extraction and Number of PAC Determination
+
+
+```{r fig.cap = "Different methods of identification of number of principle components to be retained in exploratory analysis for the gratitude survey instrument: Kaiser's eigenvalue rule, Raiche et al Monte Carlo simulation method (parallel analysis),  optimal coordinate (OC) index, and accelerate factor (AF) method.", fig.height = 4, fig.width=5}
+My.plotnScree(mat=gratitude.new, legend = TRUE, method ="components", 
+              main="Determination of Number of Components\n Gratitude Questionaires")
+```
+
+
+Figure 5 indicates retaining one PCA is sufficient for future exploratory analyses. As we did in the self-compassion survey instrument, we extract the first two principal components for potential analysis. The factor loadings of the two principal components and the corresponding proportion of variation of each component are summarized in the following two tables.
+
+
+```{r}
+Loadings = My.loadings.var(mat=gratitude.new, nfct=2, method="pca")$Loadings
+# pca loadings
+kable(round(Loadings,3),
+    caption="Factor loadings of the first few PCAs and the cumulative
+    proportion of variation explained by the corresponding PCAs in the 
+    Gratitude Questionaire Survey.")
+```
+
+
+```{r}
+VarProp = My.loadings.var(mat=gratitude.new, nfct=6, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    principle component from the Gratitude Questionaire Survey.")
+```
+A similar analysis was also conducted using EFA. The result indicates that the first principle factors is sufficient for exploratory analysis. The proportion of the total variation explained by the first factor is about 40% which is about 10% less than that in the first principle component. We will use the first PCA and call it as gratitude index.
+
+Next we extract the first PCA scores.
+
+```{r fig.cap="Histograms of the gratitude index scores. The distribution of the gratitude index is skewed to the left. We will perform a Box-Cox transformation to fix the distributional issue in the regression residuals." }
+gr.pca <- prcomp(gratitude.new, center = TRUE, scale = TRUE)
+gr.idx = gr.pca$x[,1]
+###
+hist(gr.idx,
+main="Untransformed Gratitude Indx",
+breaks = seq(min(gr.idx), max(gr.idx), length=10),
+xlab="Gratitude Index",
+xlim=range(gr.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+
+To define a meaningful index of self-compassion, we want to make sure that the proposed index is positively correlated to the individual item. Since the principle component analysis algorithm is essentially a orthogonal rotation (transformation), we can adjust the direction of the coordinate system to make the PCA scores meaningful index for subsequent association analysis. The is the plot of the pairwised association between the individual items and the two new PCA scores.
+
+
+```{r fig.height=7, fig.width=7, fig.cap = "Pair-wise correlation plot between individual survey items and the two first PCA scores extract from the two instruments."}
+M1=cor(cbind(gr.idx, gratitude.new, sc.idx, selfcomp.sub))
+#corrplot(M, type = "upper", method = "ellipse", main="Pairwise Correlation Plot: Self-Compassion Scale")
+corrplot.mixed(M1, lower.col = "purple", upper = "ellipse", number.cex = .7, tl.cex = 0.7)
+```
+
+From the above plot that the first PCA of self-compassion is negatively associated with individual items in the instrument. This implies that the negative scores of the PCA are appropriate indexes for the self-compassion. This index based on the negative PCA will be added to the final data set in the next section.
+
+
+## Final Analytic Data Set
+
+We now create a dataframe that contains PCAs based on self-compassion and gratitude indexes and the demographics.
+
+```{r}
+library(MASS)
+final.analytic.data = new.demographics
+final.analytic.data$sc.idx=sc.idx
+final.analytic.data$gr.idx=gr.idx
+```
+
+
+
+```{r}
+final.analytic.data =final.analytic.data[which(final.analytic.data$gender != "NA"),]
+# final.analytic.data
+## wrote the final analytic data frame to local drive as csv
+write.csv(final.analytic.data,'/Users/chengpeng/OneDrive - West Chester University of PA/Desktop/cpeng/WCU-Teaching/2022Fall/final-analytic-data.csv')
+```
+
+
+
+```{r fig.cap="Histograms of the Box-Cox transformed gratitude index scores." }
+bc.gr.idx = final.analytic.data$gr.idx 
+hist(bc.gr.idx,
+main="Untransformed Gratitude Index",
+breaks = seq(min(gr.idx), max(gr.idx), length=10),
+xlab="Gratitude Index",
+xlim=range(gr.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+
+
+In next section, we focus on building regression models to address the research questions.
+
+
+# Association Aanalyses
+
+Three families of linear regression models will be built in this section. The final models in each of the three families will be presented to address the association between self-compassion and other variables of interests.
+
+
+
+## Association between Self-Compassion (raw Sum) and Demographics
+The following R function reports the common goodness of fit measures to model selection.
+
+
+```{r}
+
+gof.lm = function(mod.subj, in.p, ex.p, resp="Sum"){
+    # mod.subj = name of the linear model
+    # in.p = inclusion p value
+    # ex.p = exclusion p vlue
+    sum.obj = ols_step_forward_p(mod.subj, pent = in.p, prem = ex.p)
+    summary.table=cbind(Predictor = sum.obj$predictors,
+             Mallows_cp =round(sum.obj$mallows_cp,3),
+             R.square = round(sum.obj$rsquare,3),
+             SBIC = round(sum.obj$sbic,3),
+             Adj.Rsq = round(sum.obj$adjr,3),
+             RMSE = round(sum.obj$rmse,3),
+             ACI = round(sum.obj$aic,3),
+             SBC = round(sum.obj$sbc,3))
+    ##
+    kable(summary.table, caption=paste("Summary Table of Goodness of Fit Measures", resp))
+}
+```
+
+
+## Association of Between Self-compassion (mean item scores) and Demographics
+
+
+The response variable will be the mean item scores.
+
+```{r}
+final.data=read.csv("/Users/chengpeng/OneDrive - West Chester University of PA/Desktop/cpeng/WCU-Teaching/2022Fall/final-analytic-data.csv", head = TRUE)
+final.data.01 = final.analytic.data[,-18]
+null_model_avg = lm(sc.idx ~ ., data = final.data.01)
+#null_model_avg = lm(selfcomp.avg ~ grp.age + home.size + poli.affil + spirituality + 
+#    grp.edu + urbanity, data = final.data.01)
+gof.lm(null_model_avg, in.p = .1, ex.p= 0.2, resp=" : Response =  Mean")
+
+```
+
+## Best Subset Selection
+
+In this section, we build and search the best regression model to detect the potential association between the self-compassion index and the demographics. we use an automatic variable selection procedure to find the final model that contains significant variables. The subset selection methods allows us to select top predictors. 
+
+
+
+
+
+```{r , include = FALSE}
+# Packages
+library(tidyverse)  # data manipulation and visualization
+library(leaps)      # model selection functions
+
+# Load data and remove rows with missing data
+(
+  final.data.step <- na.omit(final.data.01) %>%
+    as_tibble
+  )
+####
+```
+
+```{r}
+forward <- regsubsets(sc.idx ~ ., final.data.step,  nvmax = 19, method = "forward")
+which.min(summary(forward)$cp)
+```
+```{r}
+coef(forward, 4)
+```
+
+```{r}
+forward.model = lm(sc.idx ~ home.size + urbanity + spirituality + gr.idx, data = final.data.step)
+summary(forward.model)
+```
+
+**Conclusion:** Both forward and backward selections yield the same results.
+
+
+### Best SubSet Selection
+
+We use the following best subset selection to select top 10 strong variables to include in the final model.
+
+```{r}
+best_subset <- regsubsets(sc.idx ~ ., final.data.step,  nvmax = 19)
+which.min(summary(best_subset)$cp)
+```
+
+```{r}
+coef(best_subset, 10)
+```
+
+```{r}
+forward.model = lm(sc.idx ~ grp.age + grp.empl + home.size + gender + disability+ poli.affil + program + urbanity  + spirituality + gr.idx, data = final.data.step)
+kable(summary(forward.model)$coef)
+```
+
+
+
+```{}
+library(scales)
+par(mfrow = c(2,2))
+#plot(forward.model, which=c(1,1), pch= 19, col = alpha("purple", 0.6))
+plot(forward.model, pch= 19, col = alpha("navy", 0.6))
+#points(forward.model, pch= 16, col = alpha("purple", 0.6))
+```
+
+
+
+**Group means**
+```{r}
+grp.age = aggregate(final.data.step$sc.idx, list(final.data.step$grp.age), FUN=mean)
+home.size = aggregate(final.data.step$sc.idx, list(final.data.step$home.size), FUN=mean)
+gender = aggregate(final.data.step$sc.idx, list(final.data.step$gender), FUN=mean)
+disability = aggregate(final.data.step$sc.idx, list(final.data.step$disability), FUN=mean)
+religion = aggregate(final.data.step$sc.idx, list(final.data.step$religion), FUN=mean)
+poli.affil = aggregate(final.data.step$sc.idx, list(final.data.step$poli.affil), FUN=mean)
+program = aggregate(final.data.step$sc.idx, list(final.data.step$program), FUN=mean)
+urbanity = aggregate(final.data.step$sc.idx, list(final.data.step$urbanity), FUN=mean)
+spirituality = aggregate(final.data.step$sc.idx, list(final.data.step$spirituality), FUN=mean)
+grp.empl = aggregate(final.data.step$sc.idx, list(final.data.step$grp.empl), FUN=mean)
+
+```
+
+```{r}
+par(mfrow=c(3,3), mar=c(1.5,2,1.5,1), oma = c(1, 0.5,3, 0.5))
+##
+plot(1:length(grp.age$x), grp.age$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.3),xlim=c(0,length(grp.age$x) +1))
+text(1,0.25, "Age Group", col = "navy")
+axis(2)
+axis(1, labels = grp.age$Group.1, at = 1:length(grp.age$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(grp.age$x), rep(0, length(grp.age$x)), 1:length(grp.age$x), grp.age$x, lwd = 2, col = "purple")
+points(1:length(grp.age$x), grp.age$x, pch=19, col = "gold2", cex =0.7)
+
+## gender
+##
+plot(1:length(gender$x), gender$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.15, 0.15), xlim=c(0,length(gender$x) +1))
+#title(main = "Gender")
+text(1,0.125, "Gender", col = "navy")
+axis(2)
+axis(1, labels = gender$Group.1, at = 1:length(gender$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(gender$x), rep(0, length(gender$x)), 1:length(gender$x), gender$x, lwd = 2, col = "purple")
+points(1:length(gender$x), gender$x, pch=19, col = "gold2", cex =0.7)
+#
+#
+plot(1:length(home.size$x), home.size$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.3), xlim=c(0,length(home.size$x) +1))
+#title(main = "Household Size")
+text(1,0.25, "Household Size", col = "navy")
+axis(2)
+axis(1, labels = home.size$Group.1, at = 1:length(home.size$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(home.size$x), rep(0, length(home.size$x)), 1:length(home.size$x), home.size$x, lwd = 2, col = "purple")
+points(1:length(home.size$x), home.size$x, pch=19, col = "gold2", cex =0.7)
+#
+#disability
+plot(1:length(disability$x), disability$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.4, 0.3), xlim=c(0,length(disability$x) +1))
+#title(main = "Disability Status")
+text(1,0.25, "Disability Status", col = "navy")
+axis(2)
+axis(1, labels = disability$Group.1, at = 1:length(disability$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(disability$x), rep(0, length(disability$x)), 1:length(disability$x), disability$x, lwd = 2, col = "purple")
+points(1:length(disability$x), disability$x, pch=19, col = "gold2", cex =0.7)
+#
+#religion
+#
+plot(1:length(grp.empl$x), grp.empl$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.4, 0.3), xlim=c(0,length(grp.empl$x) +1))
+#title(main = "Disability Status")
+text(2,0.25, "Profession Experience", col = "navy")
+axis(2)
+axis(1, labels = grp.empl$Group.1, at = 1:length(grp.empl$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(grp.empl$x), rep(0, length(grp.empl$x)), 1:length(grp.empl$x), grp.empl$x, lwd = 2, col = "purple")
+points(1:length(grp.empl$x), grp.empl$x, pch=19, col = "gold2", cex =0.7)
+#
+#poli.affil
+#
+plot(1:length(poli.affil$x), poli.affil$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.3), xlim=c(0.1,length(poli.affil$x) +0.1))
+#title(main = "Disability Status")
+text(2,0.25, "Political Affiliations", col = "navy")
+axis(2)
+tikname=c("indep", "modDem","repub","strDem")
+axis(1, labels = tikname, at = 1:length(poli.affil$x), cex = 0.9)
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(poli.affil$x), rep(0, length(poli.affil$x)), 1:length(poli.affil$x), poli.affil$x, lwd = 2, col = "purple")
+points(1:length(poli.affil$x), poli.affil$x, pch=19, col = "gold2", cex =0.7)
+#
+#Program
+#
+plot(1:length(program$x), program$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.3), xlim=c(0,length(program$x) +1))
+#title(main = "Disability Status")
+text(1,0.25, "Program Type", col = "navy")
+axis(2)
+axis(1, labels = program$Group.1, at = 1:length(program$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(program$x), rep(0, length(program$x)), 1:length(program$x), program$x, lwd = 2, col = "purple")
+points(1:length(program$x), program$x, pch=19, col = "gold2", cex =0.7)
+#
+#urbanity
+#
+plot(1:length(urbanity$x), urbanity$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.55), xlim=c(0.25,length(urbanity$x) +0.25))
+#title(main = "Disability Status")
+text(2.25,0.4, "Urban vs Rural Living", col = "navy")
+axis(2)
+axis(1, labels = urbanity$Group.1, at = 1:length(urbanity$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(urbanity$x), rep(0, length(urbanity$x)), 1:length(urbanity$x), urbanity$x, lwd = 2, col = "purple")
+points(1:length(urbanity$x), urbanity$x, pch=19, col = "gold2", cex =0.7)
+#
+#spirituality
+#
+plot(1:length(spirituality$x), spirituality$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.475, 0.4), xlim=c(0,length(spirituality$x) +1))
+#title(main = "Disability Status")
+text(2,0.25, "Spirituality Level", col = "navy")
+axis(2)
+axis(1, labels = spirituality$Group.1, at = 1:length(spirituality$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(spirituality$x), rep(0, length(spirituality$x)), 1:length(spirituality$x), spirituality$x, lwd = 2, col = "purple")
+points(1:length(spirituality$x), spirituality$x, pch=19, col = "gold2", cex =0.7)
+#
+mtext("Grouped Mean Self-Compassion Scores", side = 3, line = 1, outer = TRUE, cex = 0.8, col ="navy")
+```
+
+### Gratitude Index versus Demographic Adjusted by Self-compassion Index
+
+
+The linear regression model will be based on the index scores created based on the principle component analysis.
+
+```{r}
+final.data=read.csv("/Users/chengpeng/OneDrive - West Chester University of PA/Desktop/cpeng/WCU-Teaching/2022Fall/final-analytic-data.csv", head = TRUE)
+final.data.gr = final.data[,(-c(1))]
+
+```
+
+```{r}
+best_subset_gr <- regsubsets(gr.idx ~ ., final.data.gr,  nvmax = 19)
+which.min(summary(best_subset_gr)$cp)
+```
+```{r}
+coef(best_subset_gr, 11)
+```
+
+
+
+```{r}
+final.gr.model = lm(gr.idx ~  grp.age + kid.num + gender + marital.st + religion + sexual.orient + poli.affil +  program + spirituality + sc.idx, data = final.data)
+kable(summary(final.gr.model)$coef)
+```
+
+```{r}
+grp.age = aggregate(final.data.gr$gr.idx, list(final.data.gr$grp.age), FUN=mean)
+kid.num = aggregate(final.data.gr$gr.idx, list(final.data.gr$kid.num), FUN=mean)
+gender = aggregate(final.data.gr$gr.idx, list(final.data.gr$gender), FUN=mean)
+marital.st = aggregate(final.data.gr$gr.idx, list(final.data.gr$marital.st), FUN=mean)
+religion = aggregate(final.data.gr$gr.idx, list(final.data.gr$religion), FUN=mean)
+poli.affil = aggregate(final.data.gr$gr.idx, list(final.data.gr$poli.affil), FUN=mean)
+program = aggregate(final.data.gr$gr.idx, list(final.data.gr$program), FUN=mean)
+sexual.orient = aggregate(final.data.gr$gr.idx, list(final.data.gr$sexual.orient), FUN=mean)
+spirituality = aggregate(final.data.gr$gr.idx, list(final.data.gr$spirituality), FUN=mean)
+#grp.empl = aggregate(final.data.gr$gr.idx, list(final.data.gr$grp.empl), FUN=mean)
+```
+
+
+```{r}
+par(mfrow=c(3,3), mar=c(1.5,2,1.5,1), oma = c(1, 0.5,3, 0.5))
+##
+plot(1:length(grp.age$x), grp.age$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3,0.4),xlim=c(0,length(grp.age$x) +1))
+text(1,0.35, "Age Group", col = "navy")
+axis(2)
+axis(1, labels = grp.age$Group.1, at = 1:length(grp.age$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(grp.age$x), rep(0, length(grp.age$x)), 1:length(grp.age$x), grp.age$x, lwd = 2, col = "purple")
+points(1:length(grp.age$x), grp.age$x, pch=19, col = "gold2", cex =0.7)
+
+## gender
+##
+plot(1:length(gender$x), gender$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=1.1*c(min(gender$x), max(gender$x)), xlim=c(0,length(gender$x) +1))
+#title(main = "Gender")
+text(2,max(gender$x), "Gender", col = "navy")
+axis(2)
+axis(1, labels = gender$Group.1, at = 1:length(gender$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(gender$x), rep(0, length(gender$x)), 1:length(gender$x), gender$x, lwd = 2, col = "purple")
+points(1:length(gender$x), gender$x, pch=19, col = "gold2", cex =0.7)
+#
+#
+plot(1:length(kid.num$x), kid.num$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.1, 0.1), xlim=c(0,length(kid.num$x) +1))
+#title(main = "Household Size")
+text(1,0.085, "Number of Children", col = "navy")
+axis(2)
+axis(1, labels = kid.num$Group.1, at = 1:length(kid.num$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(kid.num$x), rep(0, length(kid.num$x)), 1:length(kid.num$x), kid.num$x, lwd = 2, col = "purple")
+points(1:length(kid.num$x), kid.num$x, pch=19, col = "gold2", cex =0.7)
+#
+#disability
+plot(1:length(marital.st$x), marital.st$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.2, 0.35), xlim=c(0,length(marital.st$x) +1))
+#title(main = "Disability Status")
+text(3.125,0.3, "Marital Status", col = "navy")
+axis(2)
+axis(1, labels = marital.st$Group.1, at = 1:length(marital.st$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(marital.st$x), rep(0, length(marital.st$x)), 1:length(marital.st$x), marital.st$x, lwd = 2, col = "purple")
+points(1:length(marital.st$x), marital.st$x, pch=19, col = "gold2", cex =0.7)
+#
+#religion
+#
+plot(1:length(sexual.orient$x), sexual.orient$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.47, 0.3), xlim=c(0,length(sexual.orient$x) +1))
+#title(main = "Disability Status")
+text(2,0.25, "Sexual Orientation", col = "navy")
+axis(2)
+axis(1, labels = sexual.orient$Group.1, at = 1:length(sexual.orient$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(sexual.orient$x), rep(0, length(sexual.orient$x)), 1:length(sexual.orient$x), sexual.orient$x, lwd = 2, col = "purple")
+points(1:length(sexual.orient$x), sexual.orient$x, pch=19, col = "gold2", cex =0.7)
+#
+#poli.affil
+#
+plot(1:length(poli.affil$x), poli.affil$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.46), xlim=c(0.1,length(poli.affil$x) +0.1))
+#title(main = "Disability Status")
+text(1.5,0.44, "Political Affiliations", col = "navy")
+axis(2)
+tikname=c("indep", "modDem","repub","strDem")
+axis(1, labels = tikname, at = 1:length(poli.affil$x), cex = 0.9)
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(poli.affil$x), rep(0, length(poli.affil$x)), 1:length(poli.affil$x), poli.affil$x, lwd = 2, col = "purple")
+points(1:length(poli.affil$x), poli.affil$x, pch=19, col = "gold2", cex =0.7)
+#
+#Program
+#
+plot(1:length(program$x), program$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.35, 0.45), xlim=c(0,length(program$x) +1))
+#title(main = "Disability Status")
+text(1,0.35, "Program Type", col = "navy")
+axis(2)
+axis(1, labels = program$Group.1, at = 1:length(program$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(program$x), rep(0, length(program$x)), 1:length(program$x), program$x, lwd = 2, col = "purple")
+points(1:length(program$x), program$x, pch=19, col = "gold2", cex =0.7)
+#
+#urbanity
+#
+plot(1:length(religion$x), religion$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.3, 0.65), xlim=c(0.25,length(religion$x) +0.25))
+#title(main = "Disability Status")
+text(1.75,0.6, "Religion", col = "navy")
+axis(2)
+axis(1, labels = religion$Group.1, at = 1:length(religion$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(religion$x), rep(0, length(religion$x)), 1:length(religion$x), religion$x, lwd = 2, col = "purple")
+points(1:length(religion$x), religion$x, pch=19, col = "gold2", cex =0.7)
+#
+#spirituality
+#
+plot(1:length(spirituality$x), spirituality$x, type = "p", cex = 1.3, col = "red", axes = FALSE, ylim=c(-0.55, 0.45), xlim=c(0,length(spirituality$x) +1))
+#title(main = "Disability Status")
+text(2,0.4, "Spirituality Level", col = "navy")
+axis(2)
+axis(1, labels = spirituality$Group.1, at = 1:length(spirituality$x))
+abline(h=0, lty = 4, col = "red")
+box()
+segments(1:length(spirituality$x), rep(0, length(spirituality$x)), 1:length(spirituality$x), spirituality$x, lwd = 2, col = "purple")
+points(1:length(spirituality$x), spirituality$x, pch=19, col = "gold2", cex =0.7)
+#
+mtext("Grouped Mean Gratitude Index Scores", side = 3, line = 1, outer = TRUE, cex = 0.8, col ="navy")
+```
+
+
+```{}
+library(scales)
+par(mfrow = c(2,2))
+#plot(forward.model, which=c(1,1), pch= 19, col = alpha("purple", 0.6))
+plot(final.gr.model, pch= 19, col = alpha("navy", 0.6))
+#points(forward.model, pch= 16, col = alpha("purple", 0.6))
+```
+
+### Relationship between Self-compassion and Gratitude
+
+```{r}
+gr.idx = final.data$gr.idx
+sc.idx = final.data$sc.idx
+plot(gr.idx, sc.idx, pch=19, col=scales::alpha("navy", 0.5), xlab = "Gratitude Index",
+     ylab = "Self-compassion Index",
+     main= "Scatter of Self-compassion Index vs Gratitude Index")
+bus.id <- which(final.data$program == "BUS")
+points(gr.idx[bus.id], sc.idx[bus.id], pch=16, col=scales::alpha("red", 0.5), cex = 0.8)
+##
+final.loess = final.data[order(final.data$gr.idx),]
+loessMod50 <- loess(sc.idx~gr.idx, data = final.loess, span=0.60) # 50% smoothing span
+## prediction based on loess models with different bin widths
+smoothed50 <- predict(loessMod50)
+lines(smoothed50, x=final.loess$gr.idx, col="blue")
+###
+abline(lm(gr.idx ~ sc.idx), lty = 2, col = "red")
+###
+legend("topleft", c("Business Students", "Social Work Students"), pch=c(21,16), col=c(scales::alpha("red", 0.5), scales::alpha("navy", 0.5)), bty="n", cex = 0.7)
+
+legend(-3, 4, c("LOESS Model", "Linear Model"), lty=c(1,2), col=c("blue", "red"), bty="n", cex = 0.7)
+
+```
+
+
+Three variables were retained in the final model based on the step-wise model selection. The diagnostic plots of the above linear model are given in the following.
+
+
+
+This is a simple linear regression model.
+
+```{r}
+pca.reg = lm(sc.idx~poly(gr.idx, 3, raw = TRUE), data = final.data)
+kable(round(summary(pca.reg)$coef,4), caption = "The marginal association between 
+                                   self-compassion and gratitude index")
+```
+
+
+\newpage
+
+# References
+
+Raiche, G., Walls, T. A., Magis, D., Riopel, M. and Blais, J.-G. (2013). Non-graphical solutions for Cattell’s scree test. *Methodology*, 9(1), 23-29.
+
+Golino, H. F., & Epskamp, S. (2017). Exploratory graph analysis: A new approach for estimating the number of dimensions in psychological research. *PloS One*, 12(6), e0174035.
+
+Franklin, Scott B., Gibson, David J., Robertson, Philip A., Pohlmann, John T. and Fralish, James S. (1995). Parallel Analysis: a Method for Determining Significant Principal Components, *Journal of Vegetation Science*, Vol. 6(1): 99-106
+
+Kotera, Y &  Sheffield, D. (2020). Revisiting the Self-compassion Scale-Short Form: Stronger Associations with Self-inadequacy and Resilience, *SN Comprehensive Clinical Medicine*, 2: 761-769.
+
+López, A, Sanderman, R., Ranchor, A. V. & Schroevers, M. J. (2018). Compassion for Others and Self-Compassion: Levels, Correlates,and Relationship with Psychological Well-being. *Mindfulness*, 9: 325 - 331. 
+

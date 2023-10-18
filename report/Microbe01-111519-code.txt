@@ -1,0 +1,323 @@
+
+---
+title: "Testing Equality of Mean Diversity Scores Between Male and Femal Subjects"
+author: "C. Peng"
+date: "11/15/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+## 0. Introduction
+
+
+This analysis note contains exploratory analyses on the ecological indicators of diversity between male and female subjects in the study.  
+
+**Goal**:  Are Chao 1 values statistically different for male and female samples? Same for Shannon Diversity, and observed species values.
+
+**Several Steps for Analysis**
+
+1. We first test the use the mean of the 10 generated diversity scores by Qiime for each skin sample as the response to fit a linear model to see whether there is a statistically significant difference.
+
+2. Then look at potential hidden clustering patterns in the skin samples to define a cluster variable to see sta
+
+3. Fit a random effect mixed model that allows to use more granular data.
+
+We perform the same type of analysis for each of the three ecological diversity indices.
+
+
+
+
+## Chao1 Diversity Index
+
+```{r read-Chao-01}
+df01 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Chao1-Individual-Diversity-Indices.csv", header = TRUE)
+mydata01=(t(df01[-1,])[-(1:2),])   # character matrix
+class(mydata01)="numeric"          # convert above character matrix to numeric matrix
+SK.avg=rowMeans(mydata01)
+group=SK.avg>150
+gender = substr(rownames(mydata01),1,1)
+SK.id = rownames(mydata01)
+##
+mod01 = lm(SK.avg~gender)
+summary(mod01)
+```
+The linear model output shows that the average chao index score of male subjects is about 33 less than that of female subjects. But the it does not achieve the statistical significance (p-value = 0.198).
+
+
+```{r chao1-plot}
+par(mfrow=c(2,2))
+plot(mod01)
+```
+
+```{r chao1-heatmap}
+library(gplots)
+heatmap.2(mydata01,
+           # color key + density info
+           key = TRUE,
+           keysize = 1.5,
+           #density.info=c("histogram","density","none"),
+           density.info= "histogram",
+           # denscol=tracecol,
+           symkey = any(mydata01 < 0, na.rm=TRUE), 
+           densadj = 0.25,
+           key.title = "Color Key",
+           key.xlab = "Diversity Index",
+           key.ylab = "Count",
+           key.xtickfun = NULL,
+           key.ytickfun = NULL,
+           key.par=list(),
+          
+           # Row/Column Labeling
+           margins = c(8, 10),
+
+           # plot labels
+           main = "Chao 1",
+           xlab = "Iteration Number",
+           ylab = "Skin Sample ID",
+           )# Shortcut to final result
+
+```
+The above heatmap of the chao index indicates three significantly different clusters of skin samples:
+
+**Cluster 1 (high chao score):** F11Skin26SK, F04Skin9SK, F09Skin20SK, and F06Skin11SK;
+
+**Cluster 2 (medium chao score):** M01Skin5SK, F03Skin4SK, M04Skin21SK, F13Skin30SK, and F02Skin2SK;
+
+**Cluster 3 (low chao score):**   F01Skin1SK, M02Skin6SK, F04Skin7SK, F05Skin10SK, F07Skin12SK, M03Skin13SK, F08Skin14SK, F10Skin23SK, M05Skin24SK, F12Skin27SK, M06Skin29SK, F14Skin31SK, and F15Skin34SK.
+
+
+**Question:**  Are these clustered skin samples bearing special biological information?
+
+**Another Question:** Qiime generated 10 diversity index scores for each skin sample. How these scores are generated? Observed in different time? different experiemental environments?  I need to know how these 10 indices were obtained from each skin sample in order to decide whether a random effect model is appropriate for the data. 
+
+### Following is a trial of random effect model for Chao Index
+
+
+We first convert the wide table to a long table and add skin sample ID and gender for the mixed modeling purpose.
+
+```{r chao-wide}
+new.data01=as.data.frame(mydata01)
+new.data01$gender = substr(rownames(mydata01),1,1)
+new.data01$skinID = 1:length(substr(rownames(mydata01),1,1))
+new.data01$skinSK = substr(rownames(mydata01),4,nchar(rownames(mydata01)))
+#new.data01
+```
+
+```{r chao-long}
+library(reshape)
+chao.long <- melt(new.data01, id=c("skinID","gender", "skinSK"))
+#chao.long
+```
+Linear mode at indices obtained at each iteration
+
+```{r lm-at-index-at-iter}
+chao.long.m01 <- lm(value ~ gender+skinSK, data=chao.long)
+summary(chao.long.m01)
+
+```
+```{r lm-long-residual-plots}
+par(mfrow=c(2,2))
+plot(chao.long.m01)
+```
+```{r residual-hist-chao-long}
+hist(chao.long.m01$residual, breaks=15, xlab="Chao Diversity Index", main="Residual Distribution of Chao LM")
+
+```
+
+
+Next we fit a random effect model to the data with lme4
+
+```{r chao-mixed}
+# library(nlme)
+# library(lme4)
+# chao.mix1 <- lmer(value ~ gender + (gender | skinID), data=chao.long)
+# summary(chao.mix1)
+```
+
+
+
+
+
+
+### Remarks
+
+For Shannon and Observed Species indices, I can repeat the same type of analyses. I will not go to details before obtaining your expert feedback. I will proved basic regression models and heatmaps so you see the same pattern that there is no statistically significant difference between male and female subjects.
+
+
+
+
+
+
+
+## 2. Shannon Diversity Index
+
+
+```{r read-data-Shannon}
+df02 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Shannon-Individual-Diversity-Indices.csv", header = TRUE)
+mydata02=(t(df02[-1,])[-(1:2),])   # character matrix
+class(mydata02)="numeric"        # convert above character matrix to numeric matrix
+```
+
+```{r model-shannon}
+SK.avg=rowMeans(mydata02)
+#group=SK.avg>100
+gender = substr(rownames(mydata02),1,1)
+SK.id = rownames(mydata02)
+##
+mod02 = lm(SK.avg~gender)
+summary(mod02)
+```
+
+```{r shannon-plot}
+par(mfrow=c(2,2))
+plot(mod02)
+```
+```{r Shannon-heatmap}
+library(gplots)
+heatmap.2(mydata02,
+           # color key + density info
+           key = TRUE,
+           keysize = 1.5,
+           #density.info=c("histogram","density","none"),
+           density.info= "histogram",
+           # denscol=tracecol,
+           symkey = any(mydata01 < 0, na.rm=TRUE), 
+           densadj = 0.25,
+           key.title = "Color Key",
+           key.xlab = "Diversity Index",
+           key.ylab = "Count",
+           key.xtickfun = NULL,
+           key.ytickfun = NULL,
+           key.par=list(),
+          
+           # Row/Column Labeling
+           margins = c(8, 10),
+
+           # plot labels
+           main = "Shannon",
+           xlab = "Iteration Number",
+           ylab = "Skin Sample ID",
+           )# Shortcut to final result
+
+```
+
+```{r Shannon-wide}
+new.data02=as.data.frame(mydata02)
+new.data02$gender = substr(rownames(mydata02),1,1)
+new.data02$skinID = 1:length(substr(rownames(mydata02),1,1))
+new.data02$skinSK = substr(rownames(mydata02),4,nchar(rownames(mydata02)))
+#new.data02
+```
+```{r shannon-long}
+library(reshape)
+shannon.long <- melt(new.data02, id=c("skinID","gender", "skinSK"))
+#shannon.long
+```
+
+
+```{r shannon-lm-at-index-at-iter}
+shannon.long.m02 <- lm(value ~ gender+skinSK, data=shannon.long)
+summary(shannon.long.m02)
+
+```
+```{r residual-hist-shannon-long}
+hist(shannon.long.m02$residual, breaks=15, xlab="Shannon Diversity Index", main="Residual Distribution of Shannon LM")
+
+```
+
+
+```{r shannon-lm-long-residual-plots}
+par(mfrow=c(2,2))
+plot(shannon.long.m02)
+```
+
+
+
+## 3. Observed Species
+
+
+
+```{r read-data-observed-species}
+df03 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Obs-Species-Individual-Diversity-Indices.csv", header = TRUE)
+mydata03=(t(df03[-1,])[-(1:2),])   # character matrix
+class(mydata03)="numeric"        # convert above character matrix to numeric matrix
+```
+
+```{r model-obs-spec}
+SK.avg=rowMeans(mydata03)
+group=SK.avg>100
+gender = substr(rownames(mydata03),1,1)
+SK.id = rownames(mydata03)
+##
+mod03 = lm(SK.avg~gender)
+summary(mod03)
+```
+```{r obs-species-plot}
+par(mfrow=c(2,2))
+plot(mod03)
+```
+
+
+```{r observed-species-heatmap}
+library(gplots)
+heatmap.2(mydata03,
+           # color key + density info
+           key = TRUE,
+           keysize = 1.5,
+           #density.info=c("histogram","density","none"),
+           density.info= "histogram",
+           # denscol=tracecol,
+           symkey = any(mydata01 < 0, na.rm=TRUE), 
+           densadj = 0.25,
+           key.title = "Color Key",
+           key.xlab = "Diversity Index",
+           key.ylab = "Count",
+           key.xtickfun = NULL,
+           key.ytickfun = NULL,
+           key.par=list(),
+          
+           # Row/Column Labeling
+           margins = c(8, 10),
+
+           # plot labels
+           main = "Observed Species",
+           xlab = "Iteration Number",
+           ylab = "Skin Sample ID",
+           )# Shortcut to final result
+
+```
+
+
+```{r Obs-spec--wide}
+new.data03=as.data.frame(mydata03)
+new.data03$gender = substr(rownames(mydata03),1,1)
+new.data03$skinID = 1:length(substr(rownames(mydata03),1,1))
+new.data03$skinSK = substr(rownames(mydata03),4,nchar(rownames(mydata03)))
+#new.data03
+```
+
+
+```{r obs-spec-long}
+library(reshape)
+obs.spec.long <- melt(new.data03, id=c("skinID","gender", "skinSK"))
+# obs.spec.long
+```
+
+```{r obs-spec-lm-at-index-at-iter}
+obs.spec.long.m03 <- lm(value ~ gender+skinSK, data=obs.spec.long)
+summary(obs.spec.long.m03)
+
+```
+
+```{r residual-hist-obs-spec-long}
+hist(obs.spec.long.m03$residual, breaks=15, xlab=" Diversity Index", main="Residual Distribution of Observed Species LM")
+
+```
+
+```{r obs-spec-lm-long-residual-plots}
+par(mfrow=c(2,2))
+plot(obs.spec.long.m03)
+```
+

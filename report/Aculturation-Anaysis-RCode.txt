@@ -1,0 +1,1188 @@
+
+Acculturation=read.csv("South-East-Asian-R2.csv", header=T)
+clean=Acculturation[,c(5:52,119:126, 128:129)]
+factdat=clean[, 11:44]
+lang=c(1,2,4)
+acculturation1=c(3, 5, 6, 7, 8, 24, 29)
+acculturation2=c(19, 22, 27, 28)
+prejudice=c(9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 23, 25, 26, 30, 31, 32, 33, 34)
+lang.dat=factdat[, lang]
+accu01=factdat[Acculturation1]
+accu02=7-factdat[Acculturation2]
+pred.dat=factdat[,prejudice]
+fact.dat=cbind(lang.dat, accu01, accu02, pred.dat)
+###
+########## imputatuion with the mode of individuals response
+Mode = function(x) {
+     ux = unique(na.omit(x))
+     ux[which.max(tabulate(match(x, ux)))]
+ }
+#################
+for(i in 1:34){
+ 
+   idx.y = which(is.na(fact.dat[, i]), arr.ind=TRUE)
+    n1=length(idx.y)
+    if (n1 ==0) next
+    idx.x=rep(i, n1)
+    fact.dat[idx.y, i]=Mode(fact.dat[, i])
+  }
+################
+
+# lang.fit = principal(fact.dat[,1:3], nfactors=2, rotate="varimax")
+# acculturation.fit = principal(fact.dat[,4:14], nfactors=11, rotate="varimax")
+# prejudice.fit = principal(fact.dat[,15:34], nfactors=2, rotate="varimax")
+# lang.fit
+# acculturation.fit
+# prejudice.fit
+####
+lang.fit.0 = prcomp(fact.dat[,1:3], cor = TRUE, rotate="varimax")
+acculturation.fit.0 = prcomp(fact.dat[,4:14], cor = TRUE, na.action = na.omit, rotate="varimax")
+prejudice.fit.0 = prcomp(fact.dat[,15:34], cor = TRUE,na.action = na.omit, rotate="varimax")
+####
+summary(lang.fit.0)
+summary(acculturation.fit.0)
+summary(prejudice.fit.0)
+
+#########################################  demographic variables  ##################################################
+##   q2leveled: 1 = middle school, 2 = high school, 3 = bacculaureate 4 = graduate 5 = professional
+##   q7marist: 1 = married  2 = divorced  3 = separated  4 = widowed
+##   rethself = record ethnics self 1 = asian indian  2 = Hoong/Mein
+##   rethspouse = record ethnic spouse 1= asian indian 2 = Hmong/Mein  3 = combodian  4 = caucasian  5 = other
+##   q9income:  x = x0000 - x9999
+##   q4culco-culture confilict faced while rearing children 1 = never  2 = sometimes  3 = often   4 = all the times
+##   q5hubyin - husband involvment in household chores 1 = yes   2 = no  3 = sometimes
+##   q7who - who takes the first step to resolve conflicts 1 = I  2 = Spouse  3 = don't know  4 = both
+##   q8leisti = hourrs spent for leisure activities with families
+##   q9errand - who runs daily errands 1 = I  2 = Shared  3 = spouse
+##   q10rnati- relatives back home in native country 1= yes  2 = no
+##   q18work - what is your main work 1 = full-time  2 = part-time  3 = home0maker  4 = student
+##   q23leiac - places for leasure activities near house 1 = yes   2 = no
+##   q24useac - how often are these services used 1 = never 2 = sometimes  3 = occasionally  4 = regularly
+##   agerange - age range  1 = younger than 30  2 30-50   3  older than 50
+###################################################################################################################
+demograph=Acculturation[,c(3,5,6,7,8,9,10,11,12,13,14,76,77,86,87,88,89,102,109,110,128,129)]
+pcascores=cbind(lang.fit.0$xAcculturation.fit.0$x[,1:3],prejudice.fit.0$x[,1:3])
+colnames(pcascores)=c("langf1","langf2","langf3","accuf1","accuf2","accuf3", "predf1","predf2","predf3")
+finaldat=cbind(pcascores,demograph)
+
+###################################################################
+###################################################################
+####################  Acculturation  ##############################
+###################################################################
+###################################################################
+##### occupation
+idx.emp.employed=which(finaldat$q3occupn=="Employed")
+idx.emp.Self.emp=which(finaldat$q3occupn=="Self-emp")
+#idx.emp.Housewife=which(finaldat$q3occupn=="Housewife")
+idx.emp.Unemp=which(finaldat$q3occupn=="Unemployed")
+idx.emp=c(idx.emp.employed,idx.emp.Self.emp,idx.emp.Unemp)
+accu.empf1=finaldat$accuf1
+accu.empf2=finaldat$accuf2
+accu.empf3=finaldat$accuf3
+
+########################
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.empf1),y=range(accu.empf2),z=matrix(ncol=2,nrow=2),zlim=range(accu.empf3),
+           xlab="accuf1",ylab="accuf2",zlab="accuf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.empf1[idx.emp.employed], y=accu.empf2[idx.emp.employed], z=rep(min(accu.empf3[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=accu.empf1[idx.emp.employed], y=accu.empf2[idx.emp.employed], z=accu.empf3[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+
+  p2.1=trans3d(x=accu.empf1[idx.emp.Self.emp], y=accu.empf2[idx.emp.Self.emp], z=rep(min(accu.empf3[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=accu.empf1[idx.emp.Self.emp], y=accu.empf2[idx.emp.Self.emp], z=accu.empf3[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  #p3.1=trans3d(x=accu.empf1[idx.emp.Housewife], y=accu.empf2[idx.emp.Housewife], z=rep(min(accu.empf3[idx.emp.Housewife]),length(idx.emp.Housewife)), pmat=op) 
+  #p3=trans3d(x=accu.empf1[idx.emp.Housewife], y=accu.empf2[idx.emp.Housewife], z=accu.empf3[idx.emp.Housewife], pmat=op) 
+  #points(p3,pch=16,cex=0.5, col="blue")
+  #segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=accu.empf1[idx.emp.Unemp], y=accu.empf2[idx.emp.Unemp], z=rep(min(accu.empf3[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=accu.empf1[idx.emp.Unemp], y=accu.empf2[idx.emp.Unemp], z=accu.empf3[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = Employed,\n red = Self-employed, black = Unemployed")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#########################################################
+###################  Cate-age
+idx.age.1=which(finaldat$agerange==1)
+idx.age.2=which(finaldat$agerange==2)
+idx.age.3=which(finaldat$agerange==3)
+accu.f1=finaldat$accuf1
+accu.f2=finaldat$accuf2
+accu.f3=finaldat$accuf3
+#####
+movie.age.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.f1),y=range(accu.f2),z=matrix(ncol=2,nrow=2),zlim=range(accu.f3),
+           xlab="accuf1",ylab="accuf2",zlab="accuf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.f1[idx.age.1], y=accu.f2[idx.age.1], z=rep(min(accu.f3[idx.age.1]),length(idx.age.1)), pmat=op) 
+  p1=trans3d(x=accu.f1[idx.age.1], y=accu.f2[idx.age.1], z=accu.f3[idx.age.1], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.f1[idx.age.2], y=accu.f2[idx.age.2], z=rep(min(accu.f3[idx.age.2]),length(idx.age.2)), pmat=op) 
+  p2=trans3d(x=accu.f1[idx.age.2], y=accu.f2[idx.age.2], z=accu.f3[idx.age.2], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=accu.empf1[idx.age.3], y=accu.empf2[idx.age.3], z=rep(min(accu.empf3[idx.age.3]),length(idx.age.3)), pmat=op) 
+  p3=trans3d(x=accu.empf1[idx.age.3], y=accu.empf2[idx.age.3], z=accu.empf3[idx.age.3], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+  title("MANOVA: green = <30,\n red = 30-50, black = 50+")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.age.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#########################################################
+###################  ethnics
+idx.eth.1=which(finaldat$rethself==1)
+idx.eth.2=which(finaldat$rethself==2)
+accu.f1=finaldat$accuf1
+accu.f2=finaldat$accuf2
+accu.f3=finaldat$accuf3
+#####
+movie.age.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.f1),y=range(accu.f2),z=matrix(ncol=2,nrow=2),zlim=range(accu.f3),
+           xlab="accuf1",ylab="accuf2",zlab="accuf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.f1[idx.eth.1], y=accu.f2[idx.eth.1], z=rep(min(accu.f3[idx.eth.1]),length(idx.eth.1)), pmat=op) 
+  p1=trans3d(x=accu.f1[idx.eth.1], y=accu.f2[idx.eth.1], z=accu.f3[idx.eth.1], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.f1[idx.eth.2], y=accu.f2[idx.eth.2], z=rep(min(accu.f3[idx.eth.2]),length(idx.eth.2)), pmat=op) 
+  p2=trans3d(x=accu.f1[idx.eth.2], y=accu.f2[idx.eth.2], z=accu.f3[idx.eth.2], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+  title("MANOVA: green = Asian Indian, red = Hoong/Mein")
+ }
+
+####
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.age.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#########################################
+########### q4cob
+
+idx.cob.usa=which(finaldat$q4cob=="USA")
+idx.cob.india=which(finaldat$q4cob=="India")
+#idx.cob.thailand=which(finaldat$q4cob=="Thailand")
+idx.cob.laos=which(finaldat$q4cob=="Laos-Thai")
+accu.empf1=finaldat$accuf1
+accu.empf2=finaldat$accuf2
+accu.empf3=finaldat$accuf3
+
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.empf1),y=range(accu.empf2),z=matrix(ncol=2,nrow=2),zlim=range(accu.empf3),
+           xlab="accuf1",ylab="accuf2",zlab="accuf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.empf1[idx.cob.usa], y=accu.empf2[idx.cob.usa], z=rep(min(accu.empf3[idx.cob.usa]),length(idx.cob.usa)), pmat=op) 
+  p1=trans3d(x=accu.empf1[idx.cob.usa], y=accu.empf2[idx.cob.usa], z=accu.empf3[idx.cob.usa], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.empf1[idx.cob.india], y=accu.empf2[idx.cob.india], z=rep(min(accu.empf3[idx.cob.india]),length(idx.cob.india)), pmat=op) 
+  p2=trans3d(x=accu.empf1[idx.cob.india], y=accu.empf2[idx.cob.india], z=accu.empf3[idx.cob.india], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=accu.empf1[idx.cob.thailand], y=accu.empf2[idx.cob.thailand], z=rep(min(accu.empf3[idx.cob.thailand]),length(idx.cob.thailand)), pmat=op) 
+  p3=trans3d(x=accu.empf1[idx.cob.thailand], y=accu.empf2[idx.cob.thailand], z=accu.empf3[idx.emp.Housewife], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=accu.empf1[idx.cob.laos], y=accu.empf2[idx.cob.laos], z=rep(min(accu.empf3[idx.cob.laos]),length(idx.cob.laos)), pmat=op) 
+  p4=trans3d(x=accu.empf1[idx.cob.laos], y=accu.empf2[idx.cob.laos], z=accu.empf3[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = USA, red = India \n blue=Thailand, black =Laos ")
+ }
+
+######
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+##########=============================================########
+##########          Linear Regression Models
+##########=============================================########
+#### Linear Model
+summary(lm(lm(accu.f1~factor(finaldat$q3occupn)))  
+summary(lm(accu.f2~factor(finaldat$q3occupn)))
+summary(lm(accu.f3~factor(finaldat$q3occupn)))
+#### Linear Model
+summary(lm(accu.f1~factor(finaldat$q18work)))  
+summary(lm(accu.f2~factor(finaldat$q18work)))
+summary(lm(accu.f3~factor(finaldat$q18work)))
+#### Linear Model - insignificant
+summary(lm(accu.f1~factor(finaldat$q23leiac)))  
+summary(lm(accu.f2~factor(finaldat$q23leiac)))
+summary(lm(accu.f3~factor(finaldat$q23leiac)))
+#### Linear Model - insignificant
+summary(lm(accu.f1~factor(finaldat$q24useac)))  
+summary(lm(accu.f2~factor(finaldat$q24useac)))
+summary(lm(accu.f3~factor(finaldat$q24useac)))
+#### Linear Model - insignificant
+summary(lm(accu.f1~factor(finaldat$q7who)))  
+summary(lm(accu.f2~factor(finaldat$q7who)))
+summary(lm(accu.f3~factor(finaldat$q7who)))
+#### Linear Model - insignificant
+summary(lm(accu.f1~factor(finaldat$q8leisti)))  
+summary(lm(accu.f2~factor(finaldat$q8leisti)))
+summary(lm(accu.f3~factor(finaldat$q8leisti)))
+#### Linear Model
+summary(lm(accu.f1~factor(finaldat$agerange)))
+summary(lm(accu.f2~factor(finaldat$agerange)))
+summary(lm(accu.f3~factor(finaldat$agerange)))
+#### Linear Model
+summary(lm(accu.f1~factor(finaldat$rethself)))
+summary(lm(accu.f2~factor(finaldat$rethself)))
+summary(lm(accu.f3~factor(finaldat$rethself)))
+#### Linear Model
+summary(lm(accu.f1~factor(finaldat$q4cob)))
+summary(lm(accu.f2~factor(finaldat$q4cob)))
+summary(lm(accu.f3~factor(finaldat$q4cob)))
+####### Education level
+summary(lm(finaldat$accuf1~factor(finaldat$q2levled)))
+summary(lm(finaldat$accuf2~factor(finaldat$q2levled)))
+summary(lm(finaldat$accuf3~factor(finaldat$q2levled)))
+
+######### multiple linear regression models
+acc.f1.001=lm(log(10-accu.f1)~factor(finaldat$q3occupn)+factor(finaldat$q18work)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f1.001)
+
+acc.f1.01=lm(accu.f1~factor(finaldat$q3occupn)+factor(finaldat$q18work)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f1.01)
+
+acc.f1.02=lm(accu.f1~factor(finaldat$q18work)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f1.02)
+
+########
+acc.f2.01=lm(accu.f2~factor(finaldat$q3occupn)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f2.01)
+
+acc.f2.02=lm(accu.f2~factor(finaldat$q18work)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f2.02)
+
+#######
+
+########
+acc.f3.01=lm(accu.f3~factor(finaldat$q3occupn)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f3.01)
+
+acc.f3.02=lm(accu.f3~factor(finaldat$q18work)+factor(finaldat$agerange)+factor(finaldat$q24useac)
+ +factor(finaldat$q4cob)+factor(finaldat$q2levled))
+summary(acc.f3.02)
+
+
+
+###################################################################
+###################################################################
+####################  Language  ##############################
+###################################################################
+###################################################################
+##### occupation
+idx.emp.employed=which(finaldat$q3occupn=="Employed")
+idx.emp.Self.emp=which(finaldat$q3occupn=="Self-emp")
+#idx.emp.Housewife=which(finaldat$q3occupn=="Housewife")
+idx.emp.Unemp=which(finaldat$q3occupn=="Unemployed")
+accu.empf1=finaldat$langf1
+accu.empf2=finaldat$langf2
+accu.empf3=finaldat$langf3
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.empf1),y=range(accu.empf2),z=matrix(ncol=2,nrow=2),zlim=range(accu.empf3),
+           xlab="langf1",ylab="langf2",zlab="langf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.empf1[idx.emp.employed], y=accu.empf2[idx.emp.employed], z=rep(min(accu.empf3[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=accu.empf1[idx.emp.employed], y=accu.empf2[idx.emp.employed], z=accu.empf3[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.empf1[idx.emp.Self.emp], y=accu.empf2[idx.emp.Self.emp], z=rep(min(accu.empf3[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=accu.empf1[idx.emp.Self.emp], y=accu.empf2[idx.emp.Self.emp], z=accu.empf3[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  #p3.1=trans3d(x=accu.empf1[idx.emp.Housewife], y=accu.empf2[idx.emp.Housewife], z=rep(min(accu.empf3[idx.emp.Housewife]),length(idx.emp.Housewife)), pmat=op) 
+  #p3=trans3d(x=accu.empf1[idx.emp.Housewife], y=accu.empf2[idx.emp.Housewife], z=accu.empf3[idx.emp.Housewife], pmat=op) 
+  #points(p3,pch=16,cex=0.5, col="blue")
+  #segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=accu.empf1[idx.emp.Unemp], y=accu.empf2[idx.emp.Unemp], z=rep(min(accu.empf3[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=accu.empf1[idx.emp.Unemp], y=accu.empf2[idx.emp.Unemp], z=accu.empf3[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = Employed,\n red = Self-employed, black = Unemployed")
+
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+#########################################################
+###################  Cate-age
+idx.age.1=which(finaldat$agerange==1)
+idx.age.2=which(finaldat$agerange==2)
+idx.age.3=which(finaldat$agerange==3)
+accu.f1=finaldat$langf1
+accu.f2=finaldat$langf2
+accu.f3=finaldat$langf3
+#####
+movie.age.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.f1),y=range(accu.f2),z=matrix(ncol=2,nrow=2),zlim=range(accu.f3),
+           xlab="langf1",ylab="langf2",zlab="langf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.f1[idx.age.1], y=accu.f2[idx.age.1], z=rep(min(accu.f3[idx.age.1]),length(idx.age.1)), pmat=op) 
+  p1=trans3d(x=accu.f1[idx.age.1], y=accu.f2[idx.age.1], z=accu.f3[idx.age.1], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.f1[idx.age.2], y=accu.f2[idx.age.2], z=rep(min(accu.f3[idx.age.2]),length(idx.age.2)), pmat=op) 
+  p2=trans3d(x=accu.f1[idx.age.2], y=accu.f2[idx.age.2], z=accu.f3[idx.age.2], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=accu.empf1[idx.age.3], y=accu.empf2[idx.age.3], z=rep(min(accu.empf3[idx.age.3]),length(idx.age.3)), pmat=op) 
+  p3=trans3d(x=accu.empf1[idx.age.3], y=accu.empf2[idx.age.3], z=accu.empf3[idx.age.3], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+  title("MANOVA: green = <30,\n red = 30-50, black = 50+")]
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.age.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#########################################################
+###################  ethnics
+idx.eth.1=which(finaldat$rethself==1)
+idx.eth.2=which(finaldat$rethself==2)
+accu.f1=finaldat$langf1
+accu.f2=finaldat$langf2
+accu.f3=finaldat$langf3
+#####
+movie.age.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.f1),y=range(accu.f2),z=matrix(ncol=2,nrow=2),zlim=range(accu.f3),
+           xlab="langf1",ylab="langf2",zlab="langf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.f1[idx.eth.1], y=accu.f2[idx.eth.1], z=rep(min(accu.f3[idx.eth.1]),length(idx.eth.1)), pmat=op) 
+  p1=trans3d(x=accu.f1[idx.eth.1], y=accu.f2[idx.eth.1], z=accu.f3[idx.eth.1], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.f1[idx.eth.2], y=accu.f2[idx.eth.2], z=rep(min(accu.f3[idx.eth.2]),length(idx.eth.2)), pmat=op) 
+  p2=trans3d(x=accu.f1[idx.eth.2], y=accu.f2[idx.eth.2], z=accu.f3[idx.eth.2], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+  title("MANOVA: green = Asian Indian, red = Hoong/Mein")
+ }
+
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.age.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+#########################################
+########### q4cob
+
+idx.cob.usa=which(finaldat$q4cob=="USA")
+idx.cob.india=which(finaldat$q4cob=="India")
+idx.cob.thailand=which(finaldat$q4cob=="Thailand")
+idx.cob.laos=which(finaldat$q4cob=="Laos")
+accu.f1=finaldat$langf1
+accu.f2=finaldat$langf2
+accu.f3=finaldat$langf3
+
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.empf1),y=range(accu.empf2),z=matrix(ncol=2,nrow=2),zlim=range(accu.empf3),
+           xlab="langf1",ylab="langf2",zlab="langf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.empf1[idx.cob.usa], y=accu.empf2[idx.cob.usa], z=rep(min(accu.empf3[idx.cob.usa]),length(idx.cob.usa)), pmat=op) 
+  p1=trans3d(x=accu.empf1[idx.cob.usa], y=accu.empf2[idx.cob.usa], z=accu.empf3[idx.cob.usa], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.empf1[idx.cob.india], y=accu.empf2[idx.cob.india], z=rep(min(accu.empf3[idx.cob.india]),length(idx.cob.india)), pmat=op) 
+  p2=trans3d(x=accu.empf1[idx.cob.india], y=accu.empf2[idx.cob.india], z=accu.empf3[idx.cob.india], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=accu.empf1[idx.cob.thailand], y=accu.empf2[idx.cob.thailand], z=rep(min(accu.empf3[idx.cob.thailand]),length(idx.cob.thailand)), pmat=op) 
+  p3=trans3d(x=accu.empf1[idx.cob.thailand], y=accu.empf2[idx.cob.thailand], z=accu.empf3[idx.emp.Housewife], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=accu.empf1[idx.cob.laos], y=accu.empf2[idx.cob.laos], z=rep(min(accu.empf3[idx.cob.laos]),length(idx.cob.laos)), pmat=op) 
+  p4=trans3d(x=accu.empf1[idx.cob.laos], y=accu.empf2[idx.cob.laos], z=accu.empf3[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = USA, red = India \n blue=Thailand, black =Laos ")
+
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#### Linear Model
+summary(lm(finaldat$langf1~factor(finaldat$q3occupn)))
+summary(lm(finaldat$langf2~factor(finaldat$q3occupn)))
+summary(lm(finaldat$langf3~factor(finaldat$q3occupn)))
+#### Linear Model
+summary(lm(finaldat$langf1~factor(finaldat$q18work)))  
+summary(lm(finaldat$langf2~factor(finaldat$q18work)))
+summary(lm(finaldat$langf3~factor(finaldat$q18work)))
+#### Linear Model - insignificant
+summary(lm(finaldat$langf1~factor(finaldat$q23leiac)))  
+summary(lm(finaldat$langf2~factor(finaldat$q23leiac)))
+summary(lm(finaldat$langf3~factor(finaldat$q23leiac)))
+#### Linear Model - insignificant
+summary(lm(finaldat$langf1~factor(finaldat$q24useac)))  
+summary(lm(finaldat$langf2~factor(finaldat$q24useac)))
+summary(lm(finaldat$langf3~factor(finaldat$q24useac)))
+#### Linear Model - insignificant
+summary(lm(finaldat$langf1~factor(finaldat$q7who)))  
+summary(lm(finaldat$langf2~factor(finaldat$q7who)))
+summary(lm(finaldat$langf3~factor(finaldat$q7who)))
+#### Linear Model - insignificant
+summary(lm(finaldat$langf1~factor(finaldat$q8leisti)))  
+summary(lm(finaldat$langf2~factor(finaldat$q8leisti)))
+summary(lm(finaldat$langf3~factor(finaldat$q8leisti)))
+#### Linear Model
+summary(lm(finaldat$langf1~factor(finaldat$agerange)))
+summary(lm(finaldat$langf2~factor(finaldat$agerange)))
+summary(lm(finaldat$langf3~factor(finaldat$agerange)))
+#### Linear Model - insignificant
+summary(lm(finaldat$langf1~factor(finaldat$rethself)))
+summary(lm(finaldat$langf2~factor(finaldat$rethself)))
+summary(lm(finaldat$langf3~factor(finaldat$rethself)))
+#### Linear Model
+summary(lm(finaldat$langf1~factor(finaldat$q4cob)))
+summary(lm(finaldat$langf2~factor(finaldat$q4cob)))
+summary(lm(finaldat$langf3~factor(finaldat$q4cob)))
+####### Education level - insignificant
+summary(lm(finaldat$langf1~factor(finaldat$q2levled)))
+summary(lm(finaldat$langf2~factor(finaldat$q2levled)))
+summary(lm(finaldat$langf3~factor(finaldat$q2levled)))
+
+
+###################################################################
+###################################################################
+####################  prejudice ##############################
+###################################################################
+###################################################################
+##### occupation
+idx.emp.employed=which(finaldat$q3occupn=="Employed")
+idx.emp.Self.emp=which(finaldat$q3occupn=="Self-emp")
+#idx.emp.Housewife=which(finaldat$q3occupn=="Housewife")
+idx.emp.Unemp=which(finaldat$q3occupn=="Unemployed")
+accu.empf1=finaldat$predf1
+accu.empf2=finaldat$predf2
+accu.empf3=finaldat$predf3
+
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.empf1),y=range(accu.empf2),z=matrix(ncol=2,nrow=2),zlim=range(accu.empf3),
+           xlab="prejudicef1",ylab="prejudicef2",zlab="prejudicef3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.empf1[idx.emp.employed], y=accu.empf2[idx.emp.employed], z=rep(min(accu.empf3[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=accu.empf1[idx.emp.employed], y=accu.empf2[idx.emp.employed], z=accu.empf3[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.empf1[idx.emp.Self.emp], y=accu.empf2[idx.emp.Self.emp], z=rep(min(accu.empf3[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=accu.empf1[idx.emp.Self.emp], y=accu.empf2[idx.emp.Self.emp], z=accu.empf3[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  #p3.1=trans3d(x=accu.empf1[idx.emp.Housewife], y=accu.empf2[idx.emp.Housewife], z=rep(min(accu.empf3[idx.emp.Housewife]),length(idx.emp.Housewife)), pmat=op) 
+  #p3=trans3d(x=accu.empf1[idx.emp.Housewife], y=accu.empf2[idx.emp.Housewife], z=accu.empf3[idx.emp.Housewife], pmat=op) 
+  #points(p3,pch=16,cex=0.5, col="blue")
+  #segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=accu.empf1[idx.emp.Unemp], y=accu.empf2[idx.emp.Unemp], z=rep(min(accu.empf3[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=accu.empf1[idx.emp.Unemp], y=accu.empf2[idx.emp.Unemp], z=accu.empf3[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = Employed,\n red = Self-employed, black = Unemployed")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+#########################################################
+###################  Cate-age
+idx.age.1=which(finaldat$agerange==1)
+idx.age.2=which(finaldat$agerange==2)
+idx.age.3=which(finaldat$agerange==3)
+accu.f1=finaldat$predf1
+accu.f2=finaldat$predf2
+accu.f3=finaldat$predf3
+#####
+movie.age.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.f1),y=range(accu.f2),z=matrix(ncol=2,nrow=2),zlim=range(accu.f3),
+           xlab="prejudicef1",ylab="prejudicef2",zlab="prejudicef3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.f1[idx.age.1], y=accu.f2[idx.age.1], z=rep(min(accu.f3[idx.age.1]),length(idx.age.1)), pmat=op) 
+  p1=trans3d(x=accu.f1[idx.age.1], y=accu.f2[idx.age.1], z=accu.f3[idx.age.1], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.f1[idx.age.2], y=accu.f2[idx.age.2], z=rep(min(accu.f3[idx.age.2]),length(idx.age.2)), pmat=op) 
+  p2=trans3d(x=accu.f1[idx.age.2], y=accu.f2[idx.age.2], z=accu.f3[idx.age.2], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=accu.f1[idx.age.3], y=accu.f2[idx.age.3], z=rep(min(accu.f3[idx.age.3]),length(idx.age.3)), pmat=op) 
+  p3=trans3d(x=accu.f1[idx.age.3], y=accu.f2[idx.age.3], z=accu.f3[idx.age.3], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+  title("MANOVA: green = <30,\n red = 30-50, black = 50+")]
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.age.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+
+
+#########################################################
+###################  ethnics
+idx.eth.1=which(finaldat$rethself==1)
+idx.eth.2=which(finaldat$rethself==2)
+accu.f1=finaldat$predf1
+accu.f2=finaldat$predf2
+accu.f3=finaldat$predf3
+#####
+movie.age.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.f1),y=range(accu.f2),z=matrix(ncol=2,nrow=2),zlim=range(accu.f3),
+           xlab="predf1",ylab="predff2",zlab="predff3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.f1[idx.eth.1], y=accu.f2[idx.eth.1], z=rep(min(accu.f3[idx.eth.1]),length(idx.eth.1)), pmat=op) 
+  p1=trans3d(x=accu.f1[idx.eth.1], y=accu.f2[idx.eth.1], z=accu.f3[idx.eth.1], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.f1[idx.eth.2], y=accu.f2[idx.eth.2], z=rep(min(accu.f3[idx.eth.2]),length(idx.eth.2)), pmat=op) 
+  p2=trans3d(x=accu.f1[idx.eth.2], y=accu.f2[idx.eth.2], z=accu.f3[idx.eth.2], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+ }
+
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.age.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+
+#########################################
+########### q4cob
+
+idx.cob.usa=which(finaldat$q4cob=="USA")
+idx.cob.india=which(finaldat$q4cob=="India")
+idx.cob.thailand=which(finaldat$q4cob=="Thailand")
+idx.cob.laos=which(finaldat$q4cob=="Laos")
+accu.f1=finaldat$predf1
+accu.f2=finaldat$predf2
+accu.f3=finaldat$predf3
+
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(accu.empf1),y=range(accu.empf2),z=matrix(ncol=2,nrow=2),zlim=range(accu.empf3),
+           xlab="predf1",ylab="predf2",zlab="predf3",theta=theta,phi=phi)
+  p1.1=trans3d(x=accu.empf1[idx.cob.usa], y=accu.empf2[idx.cob.usa], z=rep(min(accu.empf3[idx.cob.usa]),length(idx.cob.usa)), pmat=op) 
+  p1=trans3d(x=accu.empf1[idx.cob.usa], y=accu.empf2[idx.cob.usa], z=accu.empf3[idx.cob.usa], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=accu.empf1[idx.cob.india], y=accu.empf2[idx.cob.india], z=rep(min(accu.empf3[idx.cob.india]),length(idx.cob.india)), pmat=op) 
+  p2=trans3d(x=accu.empf1[idx.cob.india], y=accu.empf2[idx.cob.india], z=accu.empf3[idx.cob.india], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=accu.empf1[idx.cob.thailand], y=accu.empf2[idx.cob.thailand], z=rep(min(accu.empf3[idx.cob.thailand]),length(idx.cob.thailand)), pmat=op) 
+  p3=trans3d(x=accu.empf1[idx.cob.thailand], y=accu.empf2[idx.cob.thailand], z=accu.empf3[idx.emp.Housewife], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=accu.empf1[idx.cob.laos], y=accu.empf2[idx.cob.laos], z=rep(min(accu.empf3[idx.cob.laos]),length(idx.cob.laos)), pmat=op) 
+  p4=trans3d(x=accu.empf1[idx.cob.laos], y=accu.empf2[idx.cob.laos], z=accu.empf3[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = USA, red = India \n blue=Thailand, black =Laos ")
+
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#### Linear Model
+summary(lm(finaldat$predf1~factor(finaldat$q3occupn)))
+summary(lm(finaldat$predf2~factor(finaldat$q3occupn)))
+summary(lm(finaldat$predf3~factor(finaldat$q3occupn)))
+#### Linear Model
+summary(lm(finaldat$predf1~factor(finaldat$q18work)))  
+summary(lm(finaldat$predf2~factor(finaldat$q18work)))
+summary(lm(finaldat$predf3~factor(finaldat$q18work)))
+#### Linear Model - insignificant
+summary(lm(finaldat$predf1~factor(finaldat$q23leiac)))  
+summary(lm(finaldat$predf2~factor(finaldat$q23leiac)))
+summary(lm(finaldat$predf3~factor(finaldat$q23leiac)))
+#### Linear Model - insignificant
+summary(lm(finaldat$predf1~factor(finaldat$q24useac)))  
+summary(lm(finaldat$predf2~factor(finaldat$q24useac)))
+summary(lm(finaldat$predf3~factor(finaldat$q24useac)))
+#### Linear Model - insignificant
+summary(lm(finaldat$predf1~factor(finaldat$q7who)))  
+summary(lm(finaldat$predf2~factor(finaldat$q7who)))
+summary(lm(finaldat$predf3~factor(finaldat$q7who)))
+#### Linear Model - insignificant
+summary(lm(finaldat$predf1~factor(finaldat$q8leisti)))  
+summary(lm(finaldat$predf2~factor(finaldat$q8leisti)))
+summary(lm(finaldat$predf3~factor(finaldat$q8leisti)))
+#### Linear Model
+summary(lm(finaldat$predf1~factor(finaldat$agerange)))
+summary(lm(finaldat$predf2~factor(finaldat$agerange)))
+summary(lm(finaldat$predf3~factor(finaldat$agerange)))
+#### Linear Model
+summary(lm(finaldat$predf1~factor(finaldat$rethself)))
+summary(lm(finaldat$predf2~factor(finaldat$rethself)))
+summary(lm(finaldat$predf3~factor(finaldat$rethself)))
+#### Linear Model
+summary(lm(finaldat$predf1~factor(finaldat$q4cob)))
+summary(lm(finaldat$predf2~factor(finaldat$q4cob)))
+summary(lm(finaldat$predf3~factor(finaldat$q4cob)))
+######### education: q2levled
+summary(lm(finaldat$predf1~factor(finaldat$q2levled)))
+summary(lm(finaldat$predf2~factor(finaldat$q2levled)))
+summary(lm(finaldat$predf3~factor(finaldat$q2levled)))
+
+#############################################################
+#############################################################
+####      Multivariate MANOVA - Graphic Representation
+#############################################################
+#############################################################
+
+manova.test=function(model.obj){
+  W=summary(model.obj,test="Wilks")$stats[1,][-1]
+  P=summary(model.obj,test="Pillai")$stats[1,][-1]
+  H=summary(model.obj,test="Hotelling-Lawley")$stats[1,][-1]
+  R=summary(model.obj,test="Roy")$stats[1,][-1]
+  output=rbind(W,P,H,R)
+  rownames(output)=c("Pillai Test","Wilks Test", "Hotelling-Lawley Test","Roy Test")
+  colnames(output)=c("Vaue", "approx F", "num Df", "den Df", "Pr(>F)")
+  output
+}
+##### q3occupn
+maov.1=manova(cbind(langf1,accuf1,predf1)~factor(q3occupn), data=finaldat)
+maov.1
+manova.test(model.obj=maov.1)
+
+##### q18work
+maov.2=manova(cbind(langf1,accuf1,predf1)~factor(q18work), data=finaldat)
+maov.2
+manova.test(model.obj=maov.2)
+
+##### q23leiac  - insignificant
+maov.3=manova(cbind(langf1,accuf1,predf1)~factor(q23leiac), data=finaldat)
+maov.3
+manova.test(model.obj=maov.3)
+
+##### q24useac  - insignificant
+maov.4=manova(cbind(langf1,accuf1,predf1)~factor(q24useac), data=finaldat)
+maov.4
+manova.test(model.obj=maov.4)
+
+##### q7who  - insignificant
+maov.5=manova(cbind(langf1,accuf1,predf1)~factor(q7who), data=finaldat)
+maov.5
+manova.test(model.obj=maov.5)
+
+##### q8leisti  - insignificant
+maov.6=manova(cbind(langf1,accuf1,predf1)~factor(q8leisti), data=finaldat)
+maov.6
+manova.test(model.obj=maov.6)
+
+##### agerange  
+maov.7=manova(cbind(langf1,accuf1,predf1)~factor(agerange), data=finaldat)
+maov.7
+manova.test(model.obj=maov.7)
+
+##### rethself  
+maov.8=manova(cbind(langf1,accuf1,predf1)~factor(rethself), data=finaldat)
+maov.8
+manova.test(model.obj=maov.8)
+
+##### q4cob 
+maov.9=manova(cbind(langf1,accuf1,predf1)~factor(q4cob), data=finaldat)
+maov.9
+manova.test(model.obj=maov.9)
+
+##### q2levled - insignificant
+maov.10=manova(cbind(langf1,accuf1,predf1)~factor(q2levled), data=finaldat)
+maov.10
+manova.test(model.obj=maov.10)
+
+########  significant variables: finaldat$q3occupn, finaldat$q18work,finaldat$agerange,
+########   finaldat$rethself, finaldat$q4cob
+
+ftable(finaldat$q3occupn) 
+ftable(finaldat$q18work)
+ftable(finaldat$agerange)
+ftable(finaldat$rethself)
+ftable(finaldat$q4cob)
+
+#########################################
+#########################################
+#####        3D Representation
+#########################################
+#########################################
+##### q18work 
+idx.emp.employed=which(finaldat$q18work=="1")
+idx.emp.Self.emp=which(finaldat$q18work=="2")
+idx.emp.Unemp=which(finaldat$q18work=="3")
+accu=finaldat$accuf1
+lang=finaldat$langf1
+pred=finaldat$predf1
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(lang),y=range(pred),z=matrix(ncol=2,nrow=2),zlim=range(accu),
+           xlab="lang",ylab="pred",zlab="accu",theta=theta,phi=phi)
+  p1.1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=rep(min(accu[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=accu[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=rep(min(accu[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=accu[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p4.1=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=rep(min(accu[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=accu[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = Full-time,\n red = Part-time, black = Home-maker")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+#####  occupation
+idx.emp.employed=which(finaldat$q3occupn=="Employed")
+idx.emp.Self.emp=which(finaldat$q3occupn=="Self-emp")
+idx.emp.Unemp=which(finaldat$q3occupn=="Unemployed")
+accu=finaldat$accuf1
+lang=finaldat$langf1
+pred=finaldat$predf1
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(lang),y=range(pred),z=matrix(ncol=2,nrow=2),zlim=range(accu),
+           xlab="lang",ylab="pred",zlab="accu",theta=theta,phi=phi)
+  p1.1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=rep(min(accu[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=accu[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=rep(min(accu[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=accu[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p4.1=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=rep(min(accu[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=accu[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = Employed,\n red = Self-employed, black = Unemployed")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+##### agerange
+idx.emp.employed=which(finaldat$agerange=="1")
+idx.emp.Self.emp=which(finaldat$agerange=="2")
+idx.emp.Unemp=which(finaldat$agerange=="3")
+accu=finaldat$accuf1
+lang=finaldat$langf1
+pred=finaldat$predf1
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(lang),y=range(pred),z=matrix(ncol=2,nrow=2),zlim=range(accu),
+           xlab="lang",ylab="pred",zlab="accu",theta=theta,phi=phi)
+  p1.1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=rep(min(accu[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=accu[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=rep(min(accu[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=accu[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p4.1=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=rep(min(accu[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=accu[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+  title("MANOVA: green = <30,\n red = 30-50, black = 50+")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+##### rethself
+idx.emp.employed=which(finaldat$rethself=="1")
+idx.emp.Self.emp=which(finaldat$rethself=="2")
+accu=finaldat$accuf1
+lang=finaldat$langf1
+pred=finaldat$predf1
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(lang),y=range(pred),z=matrix(ncol=2,nrow=2),zlim=range(accu),
+           xlab="lang",ylab="pred",zlab="accu",theta=theta,phi=phi)
+  p1.1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=rep(min(accu[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=accu[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=rep(min(accu[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=accu[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  title("MANOVA: green = Asian Indian, red = Hoong/Mein")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+##### q4cob
+idx.emp.employed=which(finaldat$q4cob=="India")
+idx.emp.Self.emp=which(finaldat$q4cob=="Laos")
+idx.emp.Unemp=which(finaldat$q4cob=="Thailand")
+idx.emp.usa=which(finaldat$q4cob=="USA")
+accu=finaldat$accuf1
+lang=finaldat$langf1
+pred=finaldat$predf1
+
+movie.3d=function(theta, phi){
+# 3d plot
+  #theta=40
+  #phi=25
+  op=persp(x=range(lang),y=range(pred),z=matrix(ncol=2,nrow=2),zlim=range(accu),
+           xlab="lang",ylab="pred",zlab="accu",theta=theta,phi=phi)
+  p1.1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=rep(min(accu[idx.emp.employed]),length(idx.emp.employed)), pmat=op) 
+  p1=trans3d(x=lang[idx.emp.employed], y=pred[idx.emp.employed], z=accu[idx.emp.employed], pmat=op) 
+  points(p1,pch=16,cex=0.5, col="green")
+  segments(p1$x,p1$y,p1.1$x,p1.1$y, col="green")
+
+  p2.1=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=rep(min(accu[idx.emp.Self.emp]),length(idx.emp.Self.emp)), pmat=op) 
+  p2=trans3d(x=lang[idx.emp.Self.emp], y=pred[idx.emp.Self.emp], z=accu[idx.emp.Self.emp], pmat=op) 
+  points(p2,pch=16,cex=0.5, col="red")
+  segments(p2$x,p2$y,p2.1$x,p2.1$y, col="red")
+
+  p3.1=trans3d(x=lang[idx.emp.usa], y=pred[idx.emp.usa], z=rep(min(accu[idx.emp.usa]),length(idx.emp.usa)), pmat=op) 
+  p3=trans3d(x=lang[idx.emp.usa], y=pred[idx.emp.usa], z=accu[idx.emp.usa], pmat=op) 
+  points(p3,pch=16,cex=0.5, col="blue")
+  segments(p3$x,p3$y,p3.1$x,p3.1$y, col="blue")
+
+  p4.1=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=rep(min(accu[idx.emp.Unemp]),length(idx.emp.Unemp)), pmat=op) 
+  p4=trans3d(x=lang[idx.emp.Unemp], y=pred[idx.emp.Unemp], z=accu[idx.emp.Unemp], pmat=op) 
+  points(p4,pch=16,cex=0.5, col="black")
+  segments(p4$x,p4$y,p4.1$x,p4.1$y, col="black")
+
+
+  title("MANOVA: green = India, red = Laos \n blue=USA, black =Thailand ")
+ }
+th=seq(0,360,length=72)
+ for(i in 1:72){
+   movie.3d(theta=th[i],phi=20)
+   Sys.sleep(0.9)
+  }
+
+
+
+#####################################################
+#####################################################
+#####   Regression between PCs among subscales
+#####################################################
+#####################################################
+
+m1.23 = lm(accuf1~langf1+langf2+langf3+predf1+predf2+predf3, data=finaldat)
+summary(m1.23)
+m2.13 = lm(langf1~accuf1+accuf2+accuf3+predf1+predf2+predf3, data=finaldat)
+summary(m2.13)
+m3.12 = lm(predf1~accuf1+accuf2+accuf3+langf1+langf2+langf3, data=finaldat)
+summary(m3.12)
+
+### final model
+M1.23 = lm(accuf1~langf1+predf1+predf2, data=finaldat)
+summary(M1.23)
+M2.13 = lm(langf1~accuf1+accuf2+predf1+predf2, data=finaldat)
+summary(M2.13)
+M3.12 = lm(predf1~accuf1+accuf2, data=finaldat)
+summary(M3.12)
+## Residual plots
+par(mfrow=c(2,2))
+plot(M1.23)
+plot(M2.13)
+plot(M3.12)
+
+
+#####################################################
+#####################################################
+#####       Baseline logit: Employment vs PCs
+#####################################################
+#####################################################
+
+require(foreign)
+require(nnet)
+require(ggplot2)
+require(reshape2)
+
+##### model 1
+m1 = multinom(q18work ~ langf1+ accuf1 + predf1, data = finaldat)
+summary(m1)
+OR.1=exp(coef(m1))
+rownames(OR.1)=c("part-time", "home-maker")
+c.1=summary(m1)$coefficients
+rownames(c.1)=c("part-time", "home-maker")
+se.1 = summary(m1)$standard.errors
+rownames(se.1)=c("part-time", "home-maker")
+z.1 = summary(m1)$coefficients/summary(m1)$standard.errors
+rownames(z.1)=c("part-time", "home-maker")
+pval.1 = (1 - pnorm(abs(z.1), 0, 1)) * 2
+rownames(pval.1)=c("part-time", "home-maker")
+Result.1=list(Baseline= "Full-time" ,Coef=c.1, SE=se.1, TS=z.1, p.value=pval.1, OR=OR.1)
+Result.1
+##### model 1.0
+m1.0 = multinom(q18work ~ accuf1, data = finaldat)
+summary(m1.0)
+OR.10=exp(coef(m1.0))
+rownames(OR.10)=c("part-time", "home-maker")
+c.10=summary(m1.0)$coefficients
+rownames(c.10)=c("part-time", "home-maker")
+se.10 = summary(m1)$standard.errors
+rownames(se.10)=c("part-time", "home-maker")
+z.10 = summary(m1.0)$coefficients/summary(m1.0)$standard.errors
+rownames(z.10)=c("part-time", "home-maker")
+pval.10 = (1 - pnorm(abs(z.10), 0, 1)) * 2
+rownames(pval.10)=c("part-time", "home-maker")
+Result.10=list(Baseline= "Full-time" ,Coef=c.10, SE=se.10, TS=z.10, p.value=pval.10, OR=OR.10)
+Result.10
+#### Graphics
+par(mfrow=c(2,1))
+########## prob plot
+x=seq(-10,5, length=100)
+D0=1+exp(c.10[1,1]+c.10[1,2]*x)+exp(c.10[2,1]+c.10[2,2]*x)
+p01=1/D0
+p02=exp(c.10[1,1]+c.10[1,2]*x)/D0
+p03=exp(c.10[2,1]+c.10[2,2]*x)/D0
+######### adding points
+x1=seq(-10,5, length=10)
+D10=1+exp(c.10[1,1]+c.10[1,2]*x1)+exp(c.10[2,1]+c.10[2,2]*x1)
+p1.0=1/D10
+p2.0=exp(c.10[1,1]+c.10[1,2]*x10)/D10
+p3.0=exp(c.10[2,1]+c.10[2,2]*x10)/D10
+#########
+plot(x, p01, xlim=c(-10, 5), ylim=c(0,1), type="l", lty=1, xlab="Acculturation Index", ylab="Probability", col=1)
+title("Probability of Employment Status vs Acculturation Index")
+lines(x, p02, lty=2, col=2)
+lines(x, p03, lty=3, col=3)
+points(x1,p1.0, pch=15, col=1)
+points(x1,p2.0, pch=16, col=2)
+points(x1,p3.0, pch=17, col=3)
+legend(2,.7, c("Full-Time", "Part-Time", "Home-Maker"), col=1:3, lty=1:3, pch=15:17, bty="n", cex=0.8)
+
+########## model 2
+m2 = multinom(q3occupn ~ langf1+ accuf1 + predf1, data = finaldat)
+summary(m2)
+OR.2=exp(coef(m2))
+c.2=summary(m2)$coefficients
+se.2 = summary(m2)$standard.errors
+z.2 = summary(m2)$coefficients/summary(m2)$standard.errors
+pval.2 = (1 - pnorm(abs(z.2), 0, 1)) * 2
+Result.2=list(Baseline= "Employed" ,Coef=c.2, SE=se.2, TS=z.2, p.value=pval.2, OR=OR.2)
+Result.2
+#### model 2.0
+m2.0 = multinom(q3occupn ~  accuf1, data = finaldat)
+summary(m2.0)
+OR.20=exp(coef(m2.0))
+c.20=summary(m2.0)$coefficients
+se.20 = summary(m2)$standard.errors
+z.20 = summary(m2.0)$coefficients/summary(m2.0)$standard.errors
+pval.20 = (1 - pnorm(abs(z.20), 0, 1)) * 2
+Result.20=list(Baseline= "Employed" ,Coef=c.20, SE=se.20, TS=z.20, p.value=pval.20, OR=OR.20)
+Result.20
+#### prob plot
+x=seq(-10,5, length=100)
+D=1+exp(c.20[1,1]+c.20[1,2]*x)+exp(c.20[2,1]+c.20[2,2]*x)
+p1=1/D
+p2=exp(c.20[1,1]+c.20[1,2]*x)/D
+p3=exp(c.20[2,1]+c.20[2,2]*x)/D
+#### adding points
+x1=seq(-10,5, length=10)
+D1=1+exp(c.20[1,1]+c.20[1,2]*x1)+exp(c.20[2,1]+c.20[2,2]*x1)
+p1.1=1/D1
+p2.1=exp(c.20[1,1]+c.20[1,2]*x1)/D1
+p3.1=exp(c.20[2,1]+c.20[2,2]*x1)/D1
+###
+plot(x, p1, xlim=c(-10, 5), ylim=c(0,1), type="l", lty=1, xlab="Acculturation Index", ylab="Probability", col=1)
+title("Probability of Employment Status vs Acculturation Index")
+lines(x, p2, lty=2, col=2)
+lines(x, p3, lty=3, col=3)
+points(x1,p1.1, pch=15, col=1)
+points(x1,p2.1, pch=16, col=2)
+points(x1,p3.1, pch=17, col=3)
+legend(-9,.7, c("Employed", "Self-employed", "Unemployed"), col=1:3, lty=1:3, pch=15:17, bty="n", cex=0.8)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

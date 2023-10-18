@@ -1,0 +1,588 @@
+---
+title: "Taxonomic Difference of Bacteria on Human Skin by Gender"
+author: 'C. Peng'
+date: "12/24/2019"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# install.packages(MADPop)
+# library(MADPop)
+```
+# 1. Introduction
+  
+
+## 1.1. Goal  
+
+The goal of this analysis is to detect the potential statistical difference of taxonomic distributions of bacteria on human skin by gender at different taxonomic ranks. We are particularly interested in the potential overall difference at order/genus levels. If there are differences, we will list individual level difference
+
+
+## 1.2. Analysis
+
+We will conduct following analyses at each taxonomic level. 
+
+**Visual CLuster Analysis**
+
+We will create heatmaps for visualizing the two-way taxomnomic clusters of individual skin samples.
+
+**Statistical Significance Testing**
+
+The key research question is to assess whether the taxonomic distiribution Perform statistical tests for taxonomic diffierence between male and female subjects in the study. Since as move to the lower level of the taxonomic hiearchy to look at the potential discrenpacy between male and femal subjects, the issue of sparse distribution of 
+
+##
+
+# 2. Phylum Level Comparison
+
+17 bacterial phyla were observed 22 skin samples taken from different human subjects. The data is 
+
+
+```{r phylum-01}
+df01 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Taxnomy-Analysis\\Taxonomy-phylum-02.csv", header = TRUE)
+phylum.names = df01[,1][-1]
+Sample.names = names(df01)[-1]
+##
+mydata01=(t(df01[-1,])[-1,])   # character matrix
+row.names(mydata01)=Sample.names
+colnames(mydata01) = phylum.names
+##
+class(mydata01)="numeric"          # convert above character matrix to numeric matrix
+##
+NewMatx01 = matrix(rep(0, prod(dim(mydata01))), ncol=dim(mydata01)[2])
+
+for (i in 1:(dim(mydata01)[2]-1)){             # TotalSeqCounts was not populated yet.
+                                               # but will add to it after the marginal totals are obtained
+  NewMatx01[,i]=mydata01[,i]*mydata01[,18]       # 
+}
+
+NewMatx01[,18] = apply(NewMatx01, 1, sum)
+## col.total = apply(NewMatx.final,2,sum)
+##
+NewMatx01.final = cbind((NewMatx01),mydata01[,18])
+col.total01 = apply(NewMatx01.final,2,sum)
+## Marginal totals
+final.data.matrix01 = round(rbind(NewMatx01.final,col.total01),0)[1:22,1:17]
+##
+RNM01 = row.names(final.data.matrix01)
+m.mtx01 = final.data.matrix01[which(substr(RNM01,1,1)=="M"),]
+f.mtx01 = final.data.matrix01[which(substr(RNM01,1,1)=="F"),]
+m.col.tot01 = apply(m.mtx01,2,sum)
+f.col.tot01 = apply(f.mtx01,2,sum)
+##
+ctab01=as.data.frame(rbind(male=m.col.tot01, femal=f.col.tot01))
+colnames(ctab01) = phylum.names[-18]
+```
+
+Next we perform statistical tests for the potential discepency of taxonomic distribtions between male and female subjects.
+
+
+
+```{r, phyla-test-chi-LRT}
+library(MADPop)
+# observed values of the test statistics
+chi2.obs01 = chi2.stat(ctab01)   # Pearson's chi^2
+LRT.obs01 = LRT.stat(ctab01)    # LR test statistic
+T.obs01 = c(chi2 = chi2.obs01, LRT = LRT.obs01)
+# p-value with asymptotic calculation
+C = ncol(ctab01)
+pv.asy01 = pchisq(q = T.obs01, df = C-1, lower.tail = FALSE)
+signif(pv.asy01, 6)
+
+```
+
+```{r, test-boot}
+N101 <- sum(ctab01[1,])                     # size of first sample
+N201 <- sum(ctab01[2,])                     # size of second sample
+rho.hat01 <- colSums(ctab01)/(N101+N201)        # common probability vector
+# bootstrap distribution of the test statistics
+# set verbose = TRUE for progress output
+system.time({
+  T.boot01 <- UM.eqtest(N1 = N101, N2 = N201, p0 = rho.hat01, nreps =1e4,
+                      verbose = FALSE)
+})
+##    user  system elapsed 
+##   0.728   0.034   0.761
+# bootstrap p-value
+pv.boot01 <- rowMeans(t(T.boot01) >= T.obs01)
+signif(pv.boot01, 2)
+
+```
+```{r pair-wise-comparison}
+fp01 = f.col.tot01/sum(f.col.tot01)
+mp01 = m.col.tot01/sum(m.col.tot01)
+fn01=sum(f.col.tot01)
+mn01=sum(m.col.tot01)
+p.pool01 = (f.col.tot01 + m.col.tot01)/(sum(sum(f.col.tot01))+sum(sum(m.col.tot01)))
+##
+TS01=(fp01-mp01)/(sqrt(p.pool01*(1-p.pool01)*(1/sum(f.col.tot01) + 1/sum(m.col.tot01))))
+names(TS01)=phylum.names[-18]
+##
+pval01=2*(1-pnorm(abs(TS01)))
+pval01[is.nan(pval01)] = 1
+names(pval01) = phylum.names[-18]
+idx01 = sort(round(pval01,4), index.return=TRUE)$ix
+ind.pval01=round(pval01[idx01],4)
+ind.pval01
+```
+
+```{r phylem-prob-plot}
+num.bar01=min(25, length(ind.pval01))
+fp01 = round(f.col.tot01/sum(f.col.tot01),4)[idx01]
+mp01 = round(m.col.tot01/sum(m.col.tot01),4)[idx01]
+##
+ymax=1.1*max(fp01,mp01)
+##
+plot(1:num.bar01, xlim=c(0,num.bar01), ylim=c(0,ymax), xaxt="n", yaxt="n", ylab="Proportion", xlab="", bty="n")
+title("Bacterial Phyla Composition of Skin Microbiota: Female vs Male", cex= 0.7)
+xtick01=1:num.bar01
+axis(1, at=xtick01, labels=FALSE,tick = FALSE)
+axis(2)
+# points(1:num.bar, rep(-0.03, num.bar), pch=19, col=2, cex=1.1)
+# axis(1, at=xtick, labels=names(ind.pval), las=2, cex.axis=0.6, adj= 0.4,hadj=1, )
+text(x=xtick01+0.3, par("usr")[3], labels=names(ind.pval01), srt=35, pos=2, adj=-1, tck=2, xpd=TRUE, cex=0.8, las = 0.2)
+## probability histograms - comparison
+abline(h=0, lwd=5, col="gray")
+segments((1:num.bar01-0.1), rep(0,num.bar01),(1:num.bar01-0.1),fp01, lwd=6, col="red" )
+points((1:num.bar01-0.1), rep(0,num.bar01), pch=15, col="red", cex=0.8)
+points((1:num.bar01-0.1), fp01, pch=15, col="red", cex=0.8)
+segments((1:num.bar01+0.1), rep(0,num.bar01),(1:num.bar01+0.1),mp01, lwd=6, col="blue" )
+points((1:num.bar01+0.1), rep(0,num.bar01), pch=15, col="blue", cex=0.8)
+points((1:num.bar01+0.1), mp01, pch=15, col="blue", cex=0.8)
+# abline(h=0, lwd=5, col="white")
+legend("topright", c("Female", "Male"), lwd=rep(6,2), col=c("red","blue"), cex=0.8, bty="n")
+```
+
+```{r phyleu-heatmap}
+library(gplots)
+heatmap.2(mydata01[,-18],
+           # color key + density info
+           key = TRUE,
+           keysize = 1.5,
+           #density.info=c("histogram","density","none"),
+           density.info= "histogram",
+           # denscol=tracecol,
+           symkey = any(mydata01 < 0, na.rm=TRUE), 
+           densadj = 0.25,
+           key.title = "Color Key",
+           key.xlab = "",
+           key.ylab = "",
+           key.xtickfun = NULL,
+           key.ytickfun = NULL,
+           key.par=list(),
+          
+           # Row/Column Labeling
+           margins = c(8, 10),
+
+           # plot labels
+           main = "Phyla Composition Clustering by Gender",
+           xlab = "",
+           ylab = "",
+           )# Shortcut to final result
+
+```
+The above heatmap of the chao index indicates three significantly different clusters of skin samples:
+
+
+
+# 3. Comparison of Order Composition By Gender
+
+
+```{r order-01}
+df02 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Taxnomy-Analysis\\Taxonomy-Oder-v1.csv", header = TRUE)
+order.names2 = df02[,1][-1]
+Sample.names2 = names(df02)[-1]
+##
+mydata02=(t(df02[-1,])[-c(1),])   # character matrix
+row.names(mydata02)=Sample.names2
+colnames(mydata02) = order.names2
+##
+class(mydata02)="numeric"          # convert above character matrix to numeric matrix
+##
+NewMatx2 = matrix(rep(0, prod(dim(mydata02))), ncol=dim(mydata02)[2])
+
+for (i in 1:(dim(mydata02)[2]-1)){             # TotalSeqCounts was not populated yet.
+                                               # but will add to it after the marginal totals are obtained
+  NewMatx2[,i]=mydata02[,i]*mydata02[,63]       # 
+}
+
+NewMatx2[,63] = apply(NewMatx2, 1, sum)
+## col.total = apply(NewMatx.final,2,sum)
+##
+NewMatx.final2 = cbind((NewMatx2),mydata02[,18])
+col.total2 = apply(NewMatx.final2,2,sum)
+## Marginal totals
+final.data.matrix2 = round(rbind(NewMatx.final2,col.total2),0)[1:22,1:62]
+##
+RNM2 = row.names(final.data.matrix2)
+m.mtx2 = final.data.matrix2[which(substr(RNM2,1,1)=="M"),]
+f.mtx2 = final.data.matrix2[which(substr(RNM2,1,1)=="F"),]
+m.col.tot2 = apply(m.mtx2,2,sum)
+f.col.tot2 = apply(f.mtx2,2,sum)
+##
+ctab02=as.data.frame(rbind(male=m.col.tot2, femal=f.col.tot2))
+colnames(ctab02) = order.names2[-63]
+```
+
+The Pearson-chisquare and likelihood ratio tests
+
+
+```{r, orddf-test-chi-LRT}
+# install.packages(MADPop)
+library(MADPop)
+####
+# observed values of the test statistics
+chi2.obs2 <- chi2.stat(ctab02) # Pearson's chi^2
+LRT.obs2 <- LRT.stat(ctab02) # LR test statistic
+T.obs2 <- c(chi2 = chi2.obs2, LRT = LRT.obs2)
+# p-value with asymptotic calculation
+C <- ncol(ctab02)
+pv.asy2 <- pchisq(q = T.obs2, df = C-1, lower.tail = FALSE)
+signif(pv.asy2, 6)
+
+```
+Bootstrap tests
+
+```{r order-pair-wise-comparison}
+fp2 = f.col.tot2/sum(f.col.tot2)
+mp2 = m.col.tot2/sum(m.col.tot2)
+p.pool2 = (f.col.tot2 + m.col.tot2)/(sum(sum(f.col.tot2))+sum(sum(m.col.tot2)))
+##
+TS02=(fp2-mp2)/(sqrt(p.pool2*(1-p.pool2)*(1/sum(f.col.tot2) + 1/sum(m.col.tot2))))
+names(TS02)=order.names2[-63]
+##
+pval2=2*(1-pnorm(abs(TS02)))
+pval2[is.nan(pval2)] = 1
+names(pval2) = order.names2[-63]
+idx2 = sort(round(pval2,4), index.return=TRUE)$ix
+ind.pval2=round(pval2,4)
+prop.diff.pval2=list(pval=ind.pval2, prop.pval=cbind(fp=fp2, mp=mp2, pro.diff=fp2-mp2, pval=ind.pval2))
+# prop.diff.pval2
+```
+
+Comparison of order proportions between Male and Female subjects.
+
+```{r order-prob-plot}
+num.bar2=min(25, length(ind.pval2))
+fp2 = f.col.tot2/sum(f.col.tot2)
+mp2 = m.col.tot2/sum(m.col.tot2)
+
+prop.pval2=cbind(fp=fp2, mp=mp2, pro.diff=fp2-mp2, pval=ind.pval2)
+prop.pval.srt2 = prop.pval2[order(-fp2, -mp2),]
+
+fp.2 = round(prop.pval.srt2[,1],4)[1:num.bar2]
+mp.2 = round(prop.pval.srt2[,2],4)[1:num.bar2]
+##
+ymax2=1.1*max(fp.2,mp.2)
+##
+plot(1:num.bar2, xlim=c(0,num.bar2), ylim=c(0,ymax2), xaxt="n", yaxt="n", ylab="Proportion", xlab="", bty="n")
+title("Bacterial Order Composition of Skin Microbiota: Female vs Male", cex= 0.7)
+xtick2=1:num.bar2
+axis(1, at=xtick2, labels=FALSE,tick = FALSE)
+axis(2)
+# points(1:num.bar, rep(-0.03, num.bar), pch=19, col=2, cex=1.1)
+# axis(1, at=xtick, labels=names(ind.pval), las=2, cex.axis=0.6, adj= 0.4,hadj=1, )
+text(x=xtick2+0.3, par("usr")[3], labels=(rownames(prop.pval.srt2)[1:num.bar2]), srt=30, pos=2, adj=-1, tck=2, xpd=TRUE, cex=0.6, las = 0.2)
+## probability histograms - comparison
+abline(h=0, lwd=5, col="gray")
+segments((1:num.bar2-0.1), rep(0,num.bar2),(1:num.bar2-0.1),fp.2, lwd=3, col="red" )
+points((1:num.bar2-0.1), rep(0,num.bar2), pch=16, col="red", cex=0.8)
+points((1:num.bar2-0.1), fp.2[1:num.bar2], pch=16, col="red", cex=0.8)
+segments((1:num.bar2+0.1), rep(0,num.bar2),(1:num.bar2+0.1),mp.2, lwd=3, col="blue" )
+points((1:num.bar2+0.1), rep(0,num.bar2), pch=16, col="blue", cex=0.8)
+points((1:num.bar2+0.1), mp.2[1:num.bar2], pch=16, col="blue", cex=0.8)
+# abline(h=0, lwd=5, col="white")
+legend("topright", c("Female", "Male"), lwd=rep(3,2), col=c("red","blue"), cex=0.8, bty="n")
+```
+
+```{r, order-sort-pvl}
+prop.pval.srt2
+```
+
+
+```{r order-heatmap}
+library(gplots)
+heatmap.2(mydata02[,-63],
+           # color key + density info
+           key = TRUE,
+           keysize = 1.5,
+           #density.info=c("histogram","density","none"),
+           density.info= "histogram",
+           # denscol=tracecol,
+           symkey = any(mydata01 < 0, na.rm=TRUE), 
+           densadj = 0.25,
+           key.title = "Color Key",
+           key.xlab = "",
+           key.ylab = "",
+           key.xtickfun = NULL,
+           key.ytickfun = NULL,
+           key.par=list(),
+          
+           # Row/Column Labeling
+           margins = c(8, 10),
+
+           # plot labels
+           main = "Order Clustering by Gender",
+           xlab = "",
+           ylab = "",
+           )# Shortcut to final result
+
+```
+
+
+
+
+# 3. Comparison of Family Composition By Gender
+
+
+```{r family-01}
+df03 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Taxnomy-Analysis\\Taxonomy-Fmaily-v1.csv", header = TRUE)
+# genus.names = df03[,1][-1]
+# last=nchar(as.vector(genus.names))
+# first=as.vector(regexpr('f__', as.vector(genus.names)))
+# genus.names4=substr(as.vector(genus.names), first, last)
+# write.csv(genus.names4, file = "C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Taxnomy-Analysis\\family.csv", row.names=FALSE)
+family.names3 = as.vector(df03[,1][-1])
+Sample.names3 = names(df03)[-1]
+
+##
+mydata03=(t(df03[-1,])[-c(1),])   # character matrix
+row.names(mydata03)=Sample.names3
+colnames(mydata03) = family.names3
+##
+class(mydata03)="numeric"          # convert above character matrix to numeric matrix
+##
+NewMatx3 = matrix(rep(0, prod(dim(mydata03))), ncol=dim(mydata03)[2])
+
+for (i in 1:(dim(mydata03)[2]-1)){             # TotalSeqCounts was not populated yet.
+                                               # but will add to it after the marginal totals are obtained
+  NewMatx3[,i]=mydata03[,i]*mydata03[,139]       # 
+}
+
+NewMatx3[,139] = apply(NewMatx3, 1, sum)
+## col.total = apply(NewMatx.final,2,sum)
+##
+NewMatx.final3 = cbind((NewMatx3),mydata03[,139])
+col.total3 = apply(NewMatx.final3,2,sum)
+## Marginal totals
+final.data.matrix3 = round(rbind(NewMatx.final3,col.total3),0)[1:22,1:138]
+##
+RNM3 = row.names(final.data.matrix3)
+m.mtx3 = final.data.matrix3[which(substr(RNM3,1,1)=="M"),]
+f.mtx3 = final.data.matrix3[which(substr(RNM3,1,1)=="F"),]
+m.col.tot3 = apply(m.mtx3,2,sum)
+f.col.tot3 = apply(f.mtx3,2,sum)
+##
+ctab03=as.data.frame(rbind(male=m.col.tot3, femal=f.col.tot3))
+colnames(ctab03) = family.names3[-139]
+```
+
+The Pearson-chisquare and likelihood ratio tests
+
+
+
+
+```{r, family-test-chi-LRT}
+# install.packages(MADPop)
+library(MADPop)
+####
+# observed values of the test statistics
+chi2.obs3 <- chi2.stat(ctab03) # Pearson's chi^2
+LRT.obs3 <- LRT.stat(ctab03) # LR test statistic
+T.obs3 <- c(chi2 = chi2.obs3, LRT = LRT.obs3)
+# p-value with asymptotic calculation
+C <- ncol(ctab03)
+pv.asy3 <- pchisq(q = T.obs2, df = C-1, lower.tail = FALSE)
+signif(pv.asy3, 6)
+
+```
+
+
+Bootstrap tests
+
+```{r family-pair-wise-comparison}
+fp3 = f.col.tot3/sum(f.col.tot3)
+mp3 = m.col.tot3/sum(m.col.tot3)
+p.pool3 = (f.col.tot3 + m.col.tot3)/(sum(sum(f.col.tot3))+sum(sum(m.col.tot3)))
+##
+TS03=(fp3-mp3)/(sqrt(p.pool3*(1-p.pool3)*(1/sum(f.col.tot3) + 1/sum(m.col.tot3))))
+names(TS03)=family.names3[-139]
+##
+pval3=2*(1-pnorm(abs(TS03)))
+pval3[is.nan(pval3)] = 1
+names(pval3) = family.names3[-139]
+idx3 = sort(round(pval3,4), index.return=TRUE)$ix
+ind.pval3=round(pval3,4)
+prop.diff.pval3=list(pval=ind.pval3, prop.pval=cbind(fp=fp3, mp=mp3, pro.diff=fp3-mp3, pval=ind.pval3))
+# prop.diff.pval3
+```
+
+
+Comparison of order proportions between Male and Female subjects.
+
+```{r family-prob-plot}
+num.bar3=min(25, length(ind.pval3))
+fp3 = f.col.tot3/sum(f.col.tot3)
+mp3 = m.col.tot3/sum(m.col.tot3)
+
+prop.pval3=cbind(fp=fp3, mp=mp3, pro.diff=fp3-mp3, pval=ind.pval3)
+prop.pval.srt3 = prop.pval3[order(-fp3, -mp3),]
+
+fp.3 = round(prop.pval.srt3[,1],4)[1:num.bar3]
+mp.3 = round(prop.pval.srt3[,2],4)[1:num.bar3]
+##
+ymax3=1.1*max(fp.3,mp.3)
+##
+plot(1:num.bar3, xlim=c(0,num.bar3), ylim=c(0,ymax3), xaxt="n", yaxt="n", ylab="Proportion", xlab="", bty="n")
+title("Bacterial Family Composition of Skin Microbiota: Female vs Male", cex= 0.7)
+xtick3=1:num.bar3
+axis(1, at=xtick3, labels=FALSE,tick = FALSE)
+axis(2)
+# points(1:num.bar, rep(-0.03, num.bar), pch=19, col=2, cex=1.1)
+# axis(1, at=xtick, labels=names(ind.pval), las=2, cex.axis=0.6, adj= 0.4,hadj=1, )
+text(x=xtick3+0.3, par("usr")[3], labels=(rownames(prop.pval.srt3)[1:num.bar3]), srt=30, pos=2, adj=-1, tck=2, xpd=TRUE, cex=0.6, las = 0.2)
+## probability histograms - comparison
+abline(h=0, lwd=5, col="gray")
+segments((1:num.bar3-0.1), rep(0,num.bar3),(1:num.bar3-0.1),fp.3, lwd=3, col="red" )
+points((1:num.bar3-0.1), rep(0,num.bar3), pch=16, col="red", cex=0.8)
+points((1:num.bar3-0.1), fp.3[1:num.bar3], pch=16, col="red", cex=0.8)
+segments((1:num.bar3+0.1), rep(0,num.bar3),(1:num.bar3+0.1),mp.3, lwd=3, col="blue" )
+points((1:num.bar3+0.1), rep(0,num.bar3), pch=16, col="blue", cex=0.8)
+points((1:num.bar3+0.1), mp.3[1:num.bar3], pch=16, col="blue", cex=0.8)
+# abline(h=0, lwd=5, col="white")
+legend("topright", c("Female", "Male"), lwd=rep(3,2), col=c("red","blue"), cex=0.8, bty="n")
+```
+
+```{r, family-sort-pvl}
+prop.pval.srt3
+```
+
+
+
+# 4. Comparison of Genus Composition By Gender
+
+
+```{r genus-01}
+df04 = read.csv ("C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Taxnomy-Analysis\\Taxonomy-Genus-v1.csv", header = TRUE)
+# genus.names = df04[,1][-1]
+# last=nchar(as.vector(genus.names))
+# first=as.vector(regexpr('g__', as.vector(genus.names)))
+# genus.names4=substr(as.vector(genus.names), first, last)
+# write.csv(genus.names4, file = "C:\\cpeng\\WCU-Research\\2019\\Microbiome-Stuff\\Taxnomy-Analysis\\geni.csv", row.names=FALSE)
+genus.names4 = as.vector(df04[,1][-1])
+Sample.names4 = names(df04)[-1]
+
+##
+mydata04=(t(df04[-1,])[-c(1),])   # character matrix
+row.names(mydata04)=Sample.names4
+colnames(mydata04) = genus.names4
+##
+class(mydata04)="numeric"          # convert above character matrix to numeric matrix
+##
+NewMatx4 = matrix(rep(0, prod(dim(mydata04))), ncol=dim(mydata04)[2])
+
+for (i in 1:(dim(mydata04)[2]-1)){             # TotalSeqCounts was not populated yet.
+                                               # but will add to it after the marginal totals are obtained
+  NewMatx4[,i]=mydata04[,i]*mydata04[,303]       # 
+}
+
+NewMatx4[,303] = apply(NewMatx4, 1, sum)
+## col.total = apply(NewMatx.final,2,sum)
+##
+NewMatx.final4 = cbind((NewMatx4),mydata04[,303])
+col.total4 = apply(NewMatx.final4,2,sum)
+## Marginal totals
+final.data.matrix4 = round(rbind(NewMatx.final4,col.total4),0)[1:22,1:302]
+##
+RNM4 = row.names(final.data.matrix4)
+m.mtx4 = final.data.matrix4[which(substr(RNM4,1,1)=="M"),]
+f.mtx4 = final.data.matrix4[which(substr(RNM4,1,1)=="F"),]
+m.col.tot4 = apply(m.mtx4,2,sum)
+f.col.tot4 = apply(f.mtx4,2,sum)
+##
+ctab04=as.data.frame(rbind(male=m.col.tot4, femal=f.col.tot4))
+colnames(ctab04) = genus.names4[-303]
+```
+
+The Pearson-chisquare and likelihood ratio tests
+
+
+
+
+```{r, genus-test-chi-LRT}
+# install.packages(MADPop)
+library(MADPop)
+####
+# observed values of the test statistics
+chi2.obs4 <- chi2.stat(ctab04) # Pearson's chi^2
+LRT.obs4 <- LRT.stat(ctab04) # LR test statistic
+T.obs4 <- c(chi2 = chi2.obs4, LRT = LRT.obs4)
+# p-value with asymptotic calculation
+C <- ncol(ctab04)
+pv.asy4 <- pchisq(q = T.obs2, df = C-1, lower.tail = FALSE)
+signif(pv.asy4, 6)
+
+```
+
+
+Bootstrap tests
+
+```{r genus-pair-wise-comparison}
+fp4 = f.col.tot4/sum(f.col.tot4)
+mp4 = m.col.tot4/sum(m.col.tot4)
+p.pool4 = (f.col.tot4 + m.col.tot4)/(sum(sum(f.col.tot4))+sum(sum(m.col.tot4)))
+##
+TS04=(fp4-mp4)/(sqrt(p.pool4*(1-p.pool4)*(1/sum(f.col.tot4) + 1/sum(m.col.tot4))))
+names(TS04)=genus.names4[-303]
+##
+pval4=2*(1-pnorm(abs(TS04)))
+pval4[is.nan(pval4)] = 1
+names(pval4) = genus.names4[-63]
+idx4 = sort(round(pval4,4), index.return=TRUE)$ix
+ind.pval4=round(pval4,4)
+prop.diff.pval4=list(pval=ind.pval4, prop.pval=cbind(fp=fp4, mp=mp4, pro.diff=fp4-mp4, pval=ind.pval4))
+# prop.diff.pval4
+```
+
+
+Comparison of order proportions between Male and Female subjects.
+
+```{r genus-prob-plot}
+num.bar4=min(25, length(ind.pval4))
+fp4 = f.col.tot4/sum(f.col.tot4)
+mp4 = m.col.tot4/sum(m.col.tot4)
+
+prop.pval4=cbind(fp=fp4, mp=mp4, pro.diff=fp4-mp4, pval=ind.pval4)
+prop.pval.srt4 = prop.pval4[order(-fp4, -mp4),]
+
+fp.4 = round(prop.pval.srt4[,1],4)[1:num.bar4]
+mp.4 = round(prop.pval.srt4[,2],4)[1:num.bar4]
+##
+ymax4=1.1*max(fp.4,mp.4)
+##
+plot(1:num.bar4, xlim=c(0,num.bar4), ylim=c(0,ymax4), xaxt="n", yaxt="n", ylab="Proportion", xlab="", bty="n")
+title("Bacterial Genus Composition of Skin Microbiota: Female vs Male", cex= 0.7)
+xtick4=1:num.bar4
+axis(1, at=xtick4, labels=FALSE,tick = FALSE)
+axis(2)
+# points(1:num.bar, rep(-0.03, num.bar), pch=19, col=2, cex=1.1)
+# axis(1, at=xtick, labels=names(ind.pval), las=2, cex.axis=0.6, adj= 0.4,hadj=1, )
+text(x=xtick4+0.3, par("usr")[3], labels=(rownames(prop.pval.srt4)[1:num.bar4]), srt=30, pos=2, adj=-1, tck=2, xpd=TRUE, cex=0.6, las = 0.2)
+## probability histograms - comparison
+abline(h=0, lwd=5, col="gray")
+segments((1:num.bar4-0.1), rep(0,num.bar4),(1:num.bar4-0.1),fp.4, lwd=3, col="red" )
+points((1:num.bar4-0.1), rep(0,num.bar4), pch=16, col="red", cex=0.8)
+points((1:num.bar4-0.1), fp.4[1:num.bar4], pch=16, col="red", cex=0.8)
+segments((1:num.bar4+0.1), rep(0,num.bar4),(1:num.bar4+0.1),mp.4, lwd=3, col="blue" )
+points((1:num.bar4+0.1), rep(0,num.bar4), pch=16, col="blue", cex=0.8)
+points((1:num.bar4+0.1), mp.4[1:num.bar4], pch=16, col="blue", cex=0.8)
+# abline(h=0, lwd=5, col="white")
+legend("topright", c("Female", "Male"), lwd=rep(3,2), col=c("red","blue"), cex=0.8, bty="n")
+```
+
+```{r, genus-sort-pvl}
+prop.pval.srt4
+```
